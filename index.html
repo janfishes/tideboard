@@ -61,8 +61,11 @@
   .wrap{max-width:680px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
   header{border-bottom:3px double var(--ink);padding-bottom:10px;margin-bottom:6px}
   .chart-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-soft);text-transform:uppercase}
-  h1{font-size:26px;font-weight:700;letter-spacing:.01em;line-height:1.1;margin-top:2px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.01em;line-height:1.1;margin-top:2px;
+     display:flex;align-items:center;gap:.34em}
   h1 .thin{font-weight:500;color:var(--ink-soft)}
+  h1>span{min-width:0}   /* flex items default to min-width:auto — without this the title overflows at 375px instead of wrapping */
+  .ticon{width:1.3em;height:1.3em;flex:0 0 auto;display:block}
   .station-line{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:4px}
   .daynav{display:flex;flex-wrap:wrap;gap:4px;padding:12px 0}
   .daybtn{
@@ -237,7 +240,17 @@
 <div class="wrap">
   <header>
     <div class="chart-no">Halifax River &middot; Volusia Co &middot; datum MLLW</div>
-    <h1>TIDE BOARD <span class="thin">&mdash; Ponce Inlet &amp; upriver</span></h1>
+    <h1><svg class="ticon" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <defs><clipPath id="ticonClip"><rect width="32" height="32" rx="7"/></clipPath></defs>
+        <g clip-path="url(#ticonClip)">
+          <rect width="32" height="32" fill="#7FC6E8"/>
+          <g fill="#fff"><circle cx="9" cy="8" r="3.4"/><circle cx="13" cy="9" r="2.6"/><rect x="5.6" y="8.6" width="10" height="3.2" rx="1.6"/></g>
+          <path d="M0 20 Q8 10 16 20 T32 20 L32 32 L0 32 Z" fill="#295890"/>
+          <line x1="0" y1="17" x2="32" y2="17" stroke="#D7342A" stroke-width="1.6" stroke-dasharray="3 2.4"/>
+          <path d="M0 20 Q8 10 16 20 T32 20" fill="none" stroke="#E8A317" stroke-width="3"/>
+        </g>
+        <rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="none" stroke="rgba(21,42,59,.4)"/>
+      </svg><span>TIDE BOARD <span class="thin">&mdash; Ponce Inlet &amp; upriver</span></span></h1>
     <div class="station-line" id="stationLine">NOAA station: connecting&hellip;</div>
   </header>
 
@@ -394,7 +407,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 3;
+const BUILD_NUM = 4;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
