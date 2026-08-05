@@ -150,7 +150,7 @@ from a `file://` double-click.
   A sounding you have taken yourself always wins: enter it as **depth at dead
   low** in the lag dialog and it becomes the headline figure, with the survey
   shown underneath as a second opinion. Crook's Corner ships with 8 ft.
-- **Icons are WTF's, as placeholders.** The board needs its own artwork.
+- ~~Icons are WTF's placeholders.~~ **Done.** The board has its own mark: a single tide cycle in chart amber over chart-ink navy, crossed by the MLLW datum as a dashed line — deliberately nothing like WTF's orange redfish, so the two are never confused on a home screen. Master artwork and the SVG it was drawn from live in `~/Desktop/Tide Board Files/`; regenerate the three PNG sizes from `TideBoard-icon-master-2048.png`.
 - **No iPhone launch images.** WTF has eleven; without them a home-screen icon
   opens to a white screen for a second or two. Same fix if it becomes annoying:
   screenshot the first paint at each device size into `launch/` and add the
