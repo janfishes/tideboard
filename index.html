@@ -306,7 +306,9 @@
     Ponce de Leon Inlet site investigation (Technical Report CHL-99-1, 1995&ndash;97 field study). Other lags
     marked <b>est.</b> are educated estimates &mdash; tap any lag to adjust it once you've compared a predicted
     high or low against what you see on the water. Your adjustments are saved on this device.
-    Predictions are astronomical; strong wind or heavy rain runoff will move the real water.
+    Predictions are astronomical; strong wind or heavy rain runoff will move the real water &mdash;
+    and not by a little. One windy day in the DJM calibration record put low water <b>77 minutes</b> late
+    against an otherwise steady run of days at that spot.
     Heights are in feet above <b>MLLW</b> (Mean Lower Low Water) &mdash; the long-term average of each day's lower
     low tide, the zero mark used on U.S. charts. A negative height means water below even that average low.
     <br><br>
@@ -596,15 +598,29 @@ const BUILTIN_LOCATIONS = [
      re-derived here rather than inherited. Every observation matched to its own
      distinct NOAA 8721138 event (see WHICH ROWS ARE REAL, below), 2026-08-05:
 
-       LOW   n=6  mean +190  median +188  sd 21
-             +170 +187 +215 +216 +189 +160   (7/20 through 7/25)
+       LOW   n=5  mean +193  median +189  sd 21  (SE 9)
+             +187 +215 +216 +189 +160        (7/21 through 7/25)
        HIGH  n=5  mean +154  median +148  sd 38
              +148 +216 +136 +102 +168        (7/21 through 7/25)
 
-     LOW moved 170 -> 190. Six observations, sd 21 — as tight as WTF's Stevens
-     gauges — and the standard error is about 9 minutes, so the stored 170 sits
-     a bit over two of them below the measured mean. That is a real difference,
-     not scatter.
+     LOW moved 170 -> 193. Five observations at sd 21 — as tight as WTF's
+     Stevens gauges — with a standard error of about 9 minutes, so the stored
+     170 sits well over two of them below the measured mean. Real, not scatter.
+
+     THE 7/20 LOW IS EXCLUDED, and it is worth saying why in full. Jan first
+     gave it as 11:10 AM, then corrected it to 12:50 PM with the note "a lot of
+     wind though". At 12:50 it differences to +270 against the inlet, which is
+     3.7 standard deviations above the mean of the other five — and the wind
+     note and the arithmetic were arrived at independently, which is about as
+     much confirmation as n=6 can offer. Folding it in would drag the lag to
+     +206 and inflate the sd from 21 to 34: it would make the board worse on
+     every ordinary day in order to honour one blown one.
+
+     It is not thrown away, though. A hard blow moved low water here by about
+     77 minutes against an otherwise clean run of days — a measured figure for
+     how far wind can shift this water, which is exactly what the footnote's
+     warning about wind and runoff is describing. Predictions are astronomical;
+     that is what the astronomy is worth on a windy day in Turnbull Bay.
 
      HIGH stays at 144. The measured mean is 154 but sd 38 puts the standard
      error near 17, so 144 is inside the noise and there is nothing to justify
@@ -614,9 +630,9 @@ const BUILTIN_LOCATIONS = [
      sharp turn at low water — which is the honest reason the two columns differ
      in quality, and why the sheet records wind alongside every reading.
 
-     Provenance of the rows beyond the two photos: the 7/20 low (11:10 AM, S 10)
-     was supplied by Jan on 2026-08-05 and is not in either photo; the 7/21 low's
-     gusts are his corrected 16 mph, not the 13 shown.
+     Provenance beyond the two photos, all from Jan on 2026-08-05: the 7/20 low
+     (12:50 PM, heavy wind) is in neither photo; the 7/21 low's gusts are his
+     corrected 16 mph, not the 13 shown.
 
      WTF's own comment says Aqua Ct "carries no hs/ho/ls/lo" and was skipped by
      the height-knot list. Jan's sheet has the missing piece: a staff-gauge
@@ -646,7 +662,7 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:144, lo:190, measured:true,
+    lat:29.032633, lng:-80.946983, hi:144, lo:193, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
     srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
