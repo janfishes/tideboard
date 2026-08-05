@@ -510,7 +510,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 11;
+const BUILD_NUM = 12;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -1821,6 +1821,7 @@ function feedingCardHTML(ds, de){
 const ERAU_BASE = "https://wx.erau.edu/images/sat_erau/";
 const ERAU_SECTOR = "DAB";
 let radarLoaded = false;
+let radarNode = null;      // the live card, held across every re-render of #content
 
 /* The hand-measured georeference, and the one place it is written down. The crop
    box, the background maths and the city pins are all derived from it below, so
@@ -2137,13 +2138,22 @@ function render(){
       ${ebbLines.length ? `<div class="ebb-strip">Outgoing: ${ebbLines.join(" &middot; ")}</div>` : ""}
     </div>`;
   }
+  /* The radar card is MOVED between renders, never rebuilt: render() runs every
+     minute, and re-writing that element would throw away a loaded picture and
+     re-fetch 0.3 MB. Moving a node keeps its element, its <details> state and its
+     backgrounds intact.
+
+     It has to be LIFTED OUT BEFORE the innerHTML below, not just put back after.
+     Once it has been moved into the slot it lives inside #content, and setting
+     #content.innerHTML destroys every child — including the card, after which
+     getElementById finds nothing and it is gone for the rest of the session. The
+     first build of this had exactly that bug: the card appeared for about a
+     second, until the weather fetch triggered the next render. */
+  if(!radarNode) radarNode = document.getElementById("radarBox");
+  if(radarNode && radarNode.parentNode) radarNode.parentNode.removeChild(radarNode);
   document.getElementById("content").innerHTML = html;
-  /* The radar card lives in the static markup and is MOVED into the slot, never
-     rebuilt: render() runs every minute, and re-writing that element would throw
-     away a loaded picture and re-fetch 0.3 MB. Moving a node keeps its element,
-     its <details> state and its backgrounds intact. */
-  const slot = document.getElementById("radarSlot"), box = document.getElementById("radarBox");
-  if(slot && box) slot.appendChild(box);
+  const slot = document.getElementById("radarSlot");
+  if(slot && radarNode) slot.appendChild(radarNode);
   renderDaynav();
 }
 
@@ -2360,6 +2370,10 @@ async function boot(isRetry){
       `<div class="err">Couldn't reach the NOAA tide service (${esc(e.message)}), and the built-in tide
        tables have run out. They are refreshed automatically once a year &mdash; if this shows, the refresh
        has not run. <br><br><button class="btn" onclick="boot(true)">Try again</button></div>`;
+    /* That innerHTML just destroyed anything a previous render had put in #content,
+       the radar card included. Put it back — with no tides, a look at the sky is the
+       only thing this page can still offer. */
+    if(radarNode) document.getElementById("content").appendChild(radarNode);
     if(!isRetry){ setTimeout(() => { if(!preds.length) boot(true); }, 4000); }
   }
 }
