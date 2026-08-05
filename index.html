@@ -267,7 +267,7 @@
   <div class="warn">
     <span class="hdr">Read this first</span>
     The inlet ratings on this page are a <b>rough guide built from forecasts</b>, not an
-    observation of the <b>sandbar (the shark shallows)</b> and not a substitute for looking at it.
+    observation of the <b>sandbar</b> and not a substitute for looking at it.
     Conditions at Ponce change with the sandbar, with a squall, and with a swell the forecast never saw.
     <b>Never run this inlet on this app alone.</b> Check the sandbar with your own eyes, carry the
     Coast Guard on VHF 16, and turn around if it does not look right.
@@ -417,7 +417,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 7;
+const BUILD_NUM = 8;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -1047,7 +1047,12 @@ function ensureDepth(loc){
 const NWS_GRID = "https://api.weather.gov/gridpoints/MLB/42,94";   // the inlet's forecast cell
 const NDBC_ID  = "41070";
 
-/* OBSERVED WIND, 2.5 nm from the bar.
+/* OBSERVED WIND, 2.5 nm from the inlet.
+
+   The distance is station -> INLET, NOAA's published inlet position — the water
+   between the jetties and the sandbar, not the sandbar itself. Say "inlet" in
+   any copy that quotes this number; "from the sandbar" would name a point the
+   distance was never measured to.
 
    The board's wind was entirely FORECAST — the NWS gridded model for the
    inlet's cell. Fine for planning tomorrow, but for the hour you are actually
@@ -1453,7 +1458,7 @@ function inletCardHTML(ds, de){
   let obsLine = '';
   if(obsWind){
     obsLine = `<br>Wind for the hour around now is <b>measured</b> at ${obsWind.name}, `
-            + `${obsWind.nm} nm from the sandbar &mdash; `
+            + `${obsWind.nm} nm from the inlet &mdash; `
             + (obsWind.deg == null ? 'calm' : degToCompass(obsWind.deg) + ' ' + Math.round(obsWind.mph) + ' mph')
             + (obsWind.gust ? ', gusting ' + Math.round(obsWind.gust) : '')
             + ` (${ageWords(Date.now() - obsWind.when.getTime())}). It is an inland airport, so on a sea `
