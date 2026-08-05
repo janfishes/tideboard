@@ -134,12 +134,18 @@ from a `file://` double-click.
 
 ## Known gaps
 
-- **Crook's Corner and DJM have no coordinates.** They are Jan's own names and
-  appear on no chart and in no gazetteer, so there was nothing to look them up
-  in. Their tide *times* work exactly as before — a lag is all a time needs —
-  but they cannot show a depth until they have a position. Tap "set position" on
-  either card and pick the nearest waypoint, or put real coordinates into
-  `BUILTIN_LOCATIONS` in `index.html`.
+- **DJM shows no depth, and cannot.** Positions for Crook's Corner and DJM were
+  supplied by Jan on 2026-08-05 and are in `BUILTIN_LOCATIONS`. DJM is the Aqua
+  Ct tide gauge, which sits on a residential canal — the nearest surveyed
+  contour is 1.7 km away, because neither BlueTopo nor CUDEM maps canals that do
+  not connect to the surveyed channel (WTF's water mask excludes them on
+  purpose). Its tide *times* are unaffected. Note also that a gauge coordinate
+  is only used here for depth and for fitting the lag curve, both of which are
+  inside Jan's rule that gauge coordinates never serve as GPS positions.
+- **Crook's Corner's depth is flagged rough.** Nearest contour is 410 m away, so
+  the strip prints the distance and hedges "may dry out" rather than asserting
+  it. Worth checking against what Jan actually sees there — if it does not dry,
+  the position is on a flat beside the hole he fishes rather than in it.
 - **Icons are WTF's, as placeholders.** The board needs its own artwork.
 - **No iPhone launch images.** WTF has eleven; without them a home-screen icon
   opens to a white screen for a second or two. Same fix if it becomes annoying:

@@ -525,16 +525,32 @@ const BUILTIN_LOCATIONS = [
     lat:29.086350, lng:-80.968633, hi:75,  lo:90,  est:true },
   { key:"trestle",   name:"Train Trestle",           charted:"Strickland Bay train trestle",
     lat:29.080083, lng:-80.983483, hi:105, lo:120, est:true },
-  /* Crook's Corner and DJM are Jan's own names and do not appear on any chart
-     or in GNIS, so there is nothing to look their position up in. They work
-     exactly as before for TIMES — the lag is all a time needs. They cannot
-     show a depth until they have a position: tap "set position" on the card
-     and pick the nearest waypoint, or the two of them can be given real
-     coordinates here. Everything else on the card is unaffected. */
-  { key:"turnbull",  name:"Crook's Corner",          charted:null,
-    lat:null, lng:null, hi:120, lo:140, est:true },
-  { key:"fairway",   name:"DJM",                     charted:null,
-    lat:null, lng:null, hi:135, lo:160, est:true },
+  /* Crook's Corner and DJM are Jan's own names — neither is on a chart or in
+     GNIS, so there was nothing to look them up in and they shipped without a
+     position. Positions supplied by Jan 2026-08-05, converted from the
+     degrees-decimal-minutes he gave:
+       Crook's Corner  29°02.557'N 080°57.594'W  ->  29.042617 / -80.959900
+       DJM             29°01.964'N 080°56.826'W  ->  29.032733 / -80.947100
+     Both sit in Turnbull Bay; Crook's Corner lands within 500 m of WTF's
+     Turnbull Creek pin, which is the check that the conversion is right.
+
+     DJM IS A TIDE-GAUGE COORDINATE — the Aqua Ct gauge that came out of WTF.
+     Jan's standing rule is that a gauge coordinate is only ever good for
+     interpolating tides and never for a GPS position, a distance or a heading,
+     and that rule is why WTF carries a comment at both of its tide tables. It
+     is used here for two things and both are inside the rule: reading the
+     surveyed depth at that point, and measuring distance-from-the-inlet to fit
+     the lag curve, which IS tide interpolation. Nothing in this app navigates
+     to it. Worth knowing when reading the depth off that card: a gauge is
+     mounted on a structure, so the bottom under it can be shallower than the
+     water Jan actually fishes nearby.
+
+     Jan's note that "the lag times are valid" is why the figures below are
+     untouched — the positions were the only thing missing. */
+  { key:"turnbull",  name:"Crook's Corner",          charted:"Turnbull Bay",
+    lat:29.042617, lng:-80.959900, hi:120, lo:140, est:true },
+  { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
+    lat:29.032733, lng:-80.947100, hi:135, lo:160, est:true },
   { key:"dunlawton", name:"Dunlawton Bridge",        charted:"Halifax River, Dunlawton Bridge",
     lat:29.148333, lng:-80.975317, hi:125, lo:150, est:true }
 ];
@@ -815,11 +831,13 @@ function depthAtPoint(lat,lng){
   }
   if(!best.size) return null;
   const rank = [...best.entries()].sort((a,b) => a[1] - b[1]);
-  if(rank.length === 1) return { ft: rank[0][0], lo: rank[0][0], hi: rank[0][0], single:true };
+  const M_PER_DEG = 111000;
+  const nearM = rank[0][1]*M_PER_DEG;         // how far the nearest contour actually is
+  if(rank.length === 1) return { ft: rank[0][0], lo: rank[0][0], hi: rank[0][0], single:true, nearM };
   const [lvA,dA] = rank[0], [lvB,dB] = rank[1];
   const tot = dA + dB;
   const ft = tot > 0 ? lvA + (lvB - lvA)*(dA/tot) : lvA;
-  return { ft, lo: Math.min(lvA,lvB), hi: Math.max(lvA,lvB), single:false };
+  return { ft, lo: Math.min(lvA,lvB), hi: Math.max(lvA,lvB), single:false, nearM };
 }
 function ensureDepth(loc){
   if(!isFinite(loc.lat) || !isFinite(loc.lng)) return;
@@ -1318,18 +1336,41 @@ function depthStripHTML(loc, evAll, ds, de){
   const showNow = activeDay === 0;
   const tn = showNow ? tideAt(evAll, now) : null;
   const bits = [];
+  /* How far the nearest surveyed contour is decides how much this number is
+     worth, and the strip has to SHOW that rather than print every reading in
+     the same confident type. Crook's Corner is the case that forced it: its
+     nearest contour is 410 m away, so the figure is an extrapolation across a
+     broad flat, and it was being displayed exactly like Three Bridges — where
+     the contours are right there. Same code path, wildly different confidence.
+     Past FAR_M there is no honest number left to print at all; the strip says
+     how far away the survey is and stops. (DJM lands there: the Aqua Ct gauge
+     is on a residential canal, 1.7 km from the nearest contour, because
+     neither BlueTopo nor CUDEM maps canals that do not connect to the surveyed
+     channel — WTF's water mask excludes them on purpose.) */
+  const NEAR_M = 200, FAR_M = 600;
+  if(d.nearM > FAR_M){
+    return `<div class="depth-strip"><span class="sub">Nearest surveyed contour is
+      ${Math.round(d.nearM/10)*10} m away &mdash; too far to call the depth here.</span></div>`;
+  }
+  const rough = d.nearM > NEAR_M;
   const water = tideFt => d.ft + tideFt - NAVD88_ABOVE_MLLW;
+  /* A depth at or below zero means the survey puts the bottom above that tide —
+     print that in words, because "-0.7 ft of water" is not a thing anyone can
+     picture. Hedged to "may dry" when the reading is already flagged rough:
+     drying out is a strong claim to make off a contour 400 m away. */
+  const fig = w => w > 0.2 ? `<b>~${w.toFixed(1)} ft</b>`
+                           : (rough ? '<b>may dry out</b>' : '<b>dries out</b>');
   if(tn){
-    bits.push(`<span>Water now <b>~${water(tn.ft).toFixed(1)} ft</b></span>`);
+    bits.push(`<span>Water now ${fig(water(tn.ft))}</span>`);
   }
   // the day's lowest low at this spot
   const lows = evAll.filter(e => e.type === "L" && e.time >= ds && e.time < de);
   if(lows.length){
     const lo = lows.reduce((a,b) => b.ft < a.ft ? b : a);
-    bits.push(`<span>${fmtT(lo.time)} low <b>~${water(lo.ft).toFixed(1)} ft</b></span>`);
+    bits.push(`<span>${fmtT(lo.time)} low ${fig(water(lo.ft))}</span>`);
   }
   const band = d.single ? `${d.ft} ft contour` : `between the ${d.lo} and ${d.hi} ft contours`;
-  bits.push(`<span class="sub">bottom ~${d.ft.toFixed(1)} ft NAVD88, ${band}</span>`);
+  bits.push(`<span class="sub">${rough ? 'rough &mdash; nearest contour ' + Math.round(d.nearM/10)*10 + ' m away, ' : ''}bottom ~${d.ft.toFixed(1)} ft NAVD88, ${band}</span>`);
   // Each bit is its OWN span: the strip is a flex row with a 14px gap, and a
   // gap only separates ELEMENTS. Joined as bare strings they ran together into
   // one text node and read "~19.0 ftat 7:15 AM low".
