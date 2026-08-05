@@ -602,22 +602,32 @@ const BUILTIN_LOCATIONS = [
      column in INCHES. Fitted the way WTF's documentation prescribes for an
      observed gauge — one shared scale from the ratio of mean ranges, offsets
      set so mean high and mean low land right, NEVER a free per-type regression
-     on five points:
-        DJM   mean high 1.43 ft, mean low 0.06 ft  -> range 1.37 ft
-        Ponce mean high 2.42 ft, mean low 0.18 ft  -> range 2.24 ft
-        scale 1.37/2.24 = 0.61,  offset -0.05 ft
-     That puts the swing at DJM at about 1.65 ft, which is the 19 inches the
-     staff column actually shows. n=5: thin, and labelled est. rather than
+     on four points (the small-over-small trap that gave New Smyrna -2.94):
+        DJM   mean high 1.35 ft, mean low 0.06 ft  ->  range 1.29 ft
+        Ponce mean high 2.38 ft, mean low 0.18 ft  ->  range 2.20 ft
+        scale 1.29/2.20 = 0.59,  offset -0.04 ft
+     That puts the swing at DJM at about 1.6 ft, which is the 19 inches the
+     staff column actually shows. n=4: thin, and labelled est. rather than
      measured for that reason, but far better than pretending the water there
      moves the full 2.7 ft the inlet does — which is the exact bug WTF's V101
      height work was built to fix, and which this board was still committing.
+
+     WHICH ROWS ARE REAL (resolved with Jan, 2026-08-05): the sheet carries ONE
+     high and ONE low per day, and that rule settles both of its problems.
+     djm2 is the current photo — its 7/25 pair is High 8:52 AM / Low 3:23 PM, so
+     djm1's "High 8:52 PM" row is stale and is not used. It also means the date
+     in column A of the 7:28 PM row sits ONE ROW TOO HIGH: 7:28 PM is 7/23's
+     high, not 7/24's, which is the only assignment that leaves every day with
+     one of each and clears the impossible pair of highs 22 minutes apart on
+     7/24. Under that reading each observation maps to its own distinct NOAA
+     event with no double-matching, which is the check that it is right.
 
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
     lat:29.032633, lng:-80.946983, hi:144, lo:170, measured:true,
-    hs:0.61, ho:-0.05, ls:0.61, lo_:-0.05,
-    srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=5" },
+    hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
+    srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
      (29.1491/-80.9745), 60 samples, sd 20 min — the same bridge, 90 m from this
      pin. The board had 125/150 by estimate; the measured figures are 90/105, so
