@@ -598,14 +598,25 @@ const BUILTIN_LOCATIONS = [
      re-derived here rather than inherited. Every observation matched to its own
      distinct NOAA 8721138 event (see WHICH ROWS ARE REAL, below), 2026-08-05:
 
-       LOW   n=5  mean +193  median +189  sd 21  (SE 9)
-             +187 +215 +216 +189 +160        (7/21 through 7/25)
-       HIGH  n=5  mean +154  median +148  sd 38
+       LOW   n=5  mean +188  median +189  sd 18  (SE 8)
+             +187 +189 +216 +189 +160        (7/21 through 7/25)
+       HIGH  n=5  mean +154  median +148  sd 38  (SE 17)
              +148 +216 +136 +102 +168        (7/21 through 7/25)
 
-     LOW moved 170 -> 193. Five observations at sd 21 — as tight as WTF's
-     Stevens gauges — with a standard error of about 9 minutes, so the stored
-     170 sits well over two of them below the measured mean. Real, not scatter.
+     LOW moved 170 -> 188. Five observations at sd 18 — tighter than any of
+     WTF's Stevens gauges — with a standard error of about 8 minutes, so the
+     stored 170 sits more than two of them below the measured mean. Real, not
+     scatter. Three of the five land within two minutes of each other at
+     187/189/189, which is what a genuine lag looks like; the other two, +216
+     and +160, are the ordinary spread of timing a turn by eye.
+
+     The 7/22 low is 1:16 PM, not AM. It had no meridiem in the sheet and was
+     read here as AM, which still parsed — a low at 1:16 AM differences to +215
+     against the previous evening's NOAA low, and the day still came out with
+     one high and one low. Jan's correction moved it to the 10:07 AM low at
+     +189, which is why the mean fell 5 minutes and the sd with it. Worth
+     remembering that a wrong-but-plausible meridiem does not announce itself:
+     both readings fit the structure, and only one fits the water.
 
      THE 7/20 LOW IS EXCLUDED, and it is worth saying why in full. Jan first
      gave it as 11:10 AM, then corrected it to 12:50 PM with the note "a lot of
@@ -662,7 +673,7 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:144, lo:193, measured:true,
+    lat:29.032633, lng:-80.946983, hi:144, lo:188, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
     srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
