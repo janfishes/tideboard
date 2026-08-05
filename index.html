@@ -546,7 +546,8 @@ const STATIONS = [
 ];
 const BUILTIN_LOCATIONS = [
   { key:"inlet",     name:"Ponce Inlet (reference)", charted:"Ponce de Leon Inlet",
-    lat:29.077867, lng:-80.908517, hi:0,   lo:0,   fixed:true },
+    lat:29.077867, lng:-80.908517, hi:0,   lo:0,   fixed:true,
+    hs:1, ho:0, ls:1, lo_:0, measured:true },
   { key:"threebr",   name:"Three Bridges",           charted:"Halifax River at the three spans",
     lat:29.086350, lng:-80.968633, hi:75,  lo:90,  est:true },
   { key:"trestle",   name:"Train Trestle",           charted:"Strickland Bay train trestle",
@@ -584,10 +585,48 @@ const BUILTIN_LOCATIONS = [
      untouched — the positions were the only thing missing. */
   { key:"turnbull",  name:"Crook's Corner",          charted:"Turnbull Bay",
     lat:29.043000, lng:-80.959817, hi:120, lo:140, est:true, soundedFt:8 },
+  /* MEASURED, and now with a HEIGHT MODEL that WTF never had.
+
+     This is the Aqua Ct gauge, removed from WTF in its v382 but with the
+     calibration alive in that repo's history:
+       { id:'aquact', h:144, l:170, lagKind:'measured', src:'observed',
+         branch:'Turnbull Bay' }
+     src:'observed' = Jan timed it on the water against the inlet himself. The
+     lags below are those, kept as they stand: re-deriving them from the five
+     days in Jan's DJM sheet gives LOW +193 min (n=5, sd 21) and HIGH +138 min
+     (n=6, sd 45), which brackets the stored 144/170 but on far less data and,
+     for the highs, on a sheet with an internal contradiction (see below).
+
+     WTF's own comment says Aqua Ct "carries no hs/ho/ls/lo" and was skipped by
+     the height-knot list. Jan's sheet has the missing piece: a staff-gauge
+     column in INCHES. Fitted the way WTF's documentation prescribes for an
+     observed gauge — one shared scale from the ratio of mean ranges, offsets
+     set so mean high and mean low land right, NEVER a free per-type regression
+     on five points:
+        DJM   mean high 1.43 ft, mean low 0.06 ft  -> range 1.37 ft
+        Ponce mean high 2.42 ft, mean low 0.18 ft  -> range 2.24 ft
+        scale 1.37/2.24 = 0.61,  offset -0.05 ft
+     That puts the swing at DJM at about 1.65 ft, which is the 19 inches the
+     staff column actually shows. n=5: thin, and labelled est. rather than
+     measured for that reason, but far better than pretending the water there
+     moves the full 2.7 ft the inlet does — which is the exact bug WTF's V101
+     height work was built to fix, and which this board was still committing.
+
+     Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
+     the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032733, lng:-80.947100, hi:135, lo:160, est:true },
+    lat:29.032633, lng:-80.946983, hi:144, lo:170, measured:true,
+    hs:0.61, ho:-0.05, ls:0.61, lo_:-0.05,
+    srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=5" },
+  /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
+     (29.1491/-80.9745), 60 samples, sd 20 min — the same bridge, 90 m from this
+     pin. The board had 125/150 by estimate; the measured figures are 90/105, so
+     every Dunlawton time here was running 35-45 minutes late. It also carries
+     the height scaling, which matters more: the water at Dunlawton swings about
+     HALF what it does at the inlet. */
   { key:"dunlawton", name:"Dunlawton Bridge",        charted:"Halifax River, Dunlawton Bridge",
-    lat:29.148333, lng:-80.975317, hi:125, lo:150, est:true }
+    lat:29.148333, lng:-80.975317, hi:90,  lo:105,
+    hs:0.536, ho:-0.280, ls:0.536, lo_:-0.280, measured:true, srcNote:"WTF gauge 4955, Stevens, n=60 sd=20" }
 ];
 
 /* Every named inshore waypoint on the WTF chart between Tomoka Basin and
@@ -712,12 +751,27 @@ const fmtT = d => d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
 const fmtC = d => d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}).replace(" ","").toLowerCase();
 const fmtD = d => d.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"});
 
+/* A spot is not just the inlet's tide arriving late — it is a SMALLER tide
+   arriving late. WTF measures both and the board was only using the first: it
+   shifted times and then printed the inlet's own heights everywhere, so
+   Dunlawton was being shown a 2.7 ft swing when the water there actually moves
+   about 1.5 ft. That error goes straight into the depth strip, which is the one
+   number on this board you would put a boat on.
+
+   WTF's form, kept exactly:  shown_high = hs*ref_high + ho
+                              shown_low  = ls*ref_low  + lo
+   ('lo_' here only because 'lo' is already the low-tide LAG on these records.)
+   Spots with no measured scaling keep the inlet's heights unchanged and are
+   labelled as such, rather than being silently damped by a guess. */
 function shifted(locKey){
   const o = offsets[locKey];
-  return preds.map(p => ({
-    time: new Date(p.time.getTime() + (p.type === "H" ? o.hi : o.lo)*60000),
-    ft: p.ft, type: p.type
-  })).sort((a,b) => a.time - b.time);
+  const loc = LOCATIONS.find(l => l.key === locKey);
+  const sc = (loc && isFinite(loc.hs)) ? loc : null;
+  return preds.map(p => {
+    const isH = p.type === "H";
+    const ft = sc ? (isH ? sc.hs*p.ft + sc.ho : sc.ls*p.ft + sc.lo_) : p.ft;
+    return { time: new Date(p.time.getTime() + (isH ? o.hi : o.lo)*60000), ft, type: p.type };
+  }).sort((a,b) => a.time - b.time);
 }
 function dayWindow(offsetDays){
   const s = new Date(); s.setHours(0,0,0,0); s.setDate(s.getDate() + offsetDays);
@@ -1465,8 +1519,11 @@ function render(){
       }
     }
     const o = offsets[loc.key];
+    const scaledTxt = isFinite(loc.hs)
+      ? ` &middot; heights &times;${loc.hs} ${loc.ho < 0 ? '&minus;' : '+'} ${Math.abs(loc.ho).toFixed(2)} ft`
+      : (loc.fixed ? '' : ' &middot; inlet heights, unscaled');
     const offTxt = loc.fixed ? "NOAA reference &mdash; no lag"
-      : `lag: H +${o.hi}m / L +${o.lo}m ${loc.est ? "(est. &mdash; tap to adjust)" : "(tap to adjust)"}`;
+      : `lag: H +${o.hi}m / L +${o.lo}m ${loc.measured ? "(measured" : "(est."}${scaledTxt}) &mdash; tap to adjust`;
 
     html += `<div class="card ${ebbing ? "ebbing" : ""}">
       <div class="card-head">
