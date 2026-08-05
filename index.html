@@ -7,6 +7,12 @@
 <meta name="description" content="Tides, water depth, feeding times and inlet run windows for the Halifax River and Ponce de Leon Inlet, Volusia County, Florida.">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0E1F2E">
+<!-- "yes" here and display:standalone in the manifest are ONE decision, and it is made for
+     the PHONE: full-screen app look on the Home Screen, no browser furniture. The same two
+     switches also govern macOS "Add to Dock", and there is no way to split them per platform
+     — so the Mac Dock icon has no address bar by design. On the Mac, open the site as a
+     normal Safari tab from a bookmark when you want the URL and a Cmd-Shift-R force reload;
+     don't flip these to fix that, it would cost the phone look. -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Tide Board">
@@ -153,7 +159,9 @@
   .feedcard{background:var(--feed-soft);border:1px solid var(--feed);border-radius:4px;margin-bottom:14px;overflow:hidden}
   .feedcard .fc-head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--feed);gap:8px}
   .feedcard .fc-title{font-weight:700;font-size:15px;color:var(--feed)}
-  .feedcard .fc-moon{font-family:var(--mono);font-size:11px;color:var(--feed);text-align:right}
+  .feedcard .fc-moon{font-family:var(--mono);font-size:11px;color:var(--feed);text-align:right;
+    display:flex;align-items:center;gap:6px}
+  .feedcard .fc-moon svg{flex:none;display:block}
   .feedrows{display:flex;flex-wrap:wrap}
   .feed-ev{flex:1 1 25%;min-width:130px;padding:8px 12px;border-right:1px solid rgba(138,90,31,.3);font-family:var(--mono)}
   .feed-ev:last-child{border-right:none}
@@ -282,7 +290,9 @@
         <dt>Feeding times (tan card)</dt>
         <dd><b>Majors</b> are ~2-hour windows when the moon is directly overhead or underfoot; <b>minors</b> are
             ~1-hour windows around moonrise and moonset. Solunar theory says fish feed most actively in these
-            windows &mdash; strongest near a new or full moon (shown at top right of the card).</dd>
+            windows &mdash; strongest near a new or full moon. The top right of the card draws tonight's
+            moon at its actual phase: filled is the lit side, and it lights on the right as the moon
+            waxes, on the left as it wanes.</dd>
         <dt>Tide curve</dt>
         <dd><span class="sw" style="background:var(--ebb-line)"></span>Bold amber = outgoing (ebb) water.
             <span class="sw" style="background:var(--flood)"></span>Thin gray = incoming (flood). The vertical dashed
@@ -407,7 +417,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 4;
+const BUILD_NUM = 6;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -1564,13 +1574,37 @@ function feedingTimes(dayStart, dayEnd){
               to:   new Date(e.center.getTime() + e.halfMin*60000)
             }));
 }
+/* The phase drawn, not just named. The terminator is an ellipse: its half-width is
+   r*|2f-1| and it bows toward the DARK side, so one path shape covers crescent
+   through gibbous. Built for the waxing case (lit limb on the right, northern
+   hemisphere) and mirrored for waning — SunCalc's phase runs 0=new, .5=full, so
+   waxing is phase < .5. */
+function moonGlyphSVG(p, px){
+  const r = 8, f = p.fraction, waxing = p.phase < 0.5,
+        rx = +(r * Math.abs(2*f - 1)).toFixed(3),
+        // Under half lit the terminator bows right, toward the dark limb; past half
+        // it bows left and the shape goes gibbous.
+        thin = (2*f - 1) < 0,
+        xm = thin ? rx : -rx, sw = thin ? 0 : 1,
+        // Every arc is a quarter, never a half: WebKit inflates the radii of an arc
+        // whose endpoints are exactly a diameter apart, which spilled the lit limb
+        // outside the disc. Quarter arcs keep it inside.
+        lit = `M0,${-r} A${r},${r} 0 0,1 ${r},0 A${r},${r} 0 0,1 0,${r}` +
+              ` A${rx},${r} 0 0,${sw} ${xm},0 A${rx},${r} 0 0,${sw} 0,${-r} Z`;
+  return `<svg width="${px}" height="${px}" viewBox="-10 -10 20 20" aria-hidden="true">
+    <circle r="${r}" fill="var(--feed)" opacity=".18"/>
+    <g transform="scale(${waxing ? 1 : -1},1)"><path d="${lit}" fill="var(--feed)"/></g>
+    <circle r="${r}" fill="none" stroke="var(--feed)" stroke-width="1" opacity=".55"/>
+  </svg>`;
+}
 function moonPhaseLabel(d){
   const p = SunCalc.getMoonIllumination(d);
   const names = ["New moon","Waxing crescent","First quarter","Waxing gibbous",
                  "Full moon","Waning gibbous","Last quarter","Waning crescent"];
   const idx = Math.round(p.phase*8)%8;
   const strong = p.fraction < 0.12 || p.fraction > 0.88;
-  return names[idx] + " &middot; " + Math.round(p.fraction*100) + "% lit" + (strong ? " &middot; peak activity" : "");
+  const txt = names[idx] + " &middot; " + Math.round(p.fraction*100) + "% lit" + (strong ? " &middot; peak activity" : "");
+  return moonGlyphSVG(p, 16) + `<span>${txt}</span>`;
 }
 function feedingCardHTML(ds, de){
   let evs;
