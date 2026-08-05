@@ -17,7 +17,7 @@
    2. A new build therefore always takes TWO opens by design: the first serves
       the saved copy, the refetch lands for the next. That is not a broken
       deploy. Before diagnosing one, check what is actually live:
-        curl -s https://janfishes.github.io/tides/ | grep -o "BUILD_NUM = [0-9]*"
+        curl -s https://janfishes.github.io/tideboard/ | grep -o "BUILD_NUM = [0-9]*"
 
    The update pill in the page closes that gap on demand: its check is not a
    navigation, so it passes straight through to the network, sees the live

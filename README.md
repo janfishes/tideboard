@@ -5,7 +5,7 @@ spots up the Halifax, the depth of water standing on the bottom right now,
 solunar feeding times, and **inlet run windows** — the stretches of the day when
 the current through Ponce and the sea outside it are *not* fighting each other.
 
-Live at `https://janfishes.github.io/tides/` (once Pages is switched on).
+Live at <https://janfishes.github.io/tideboard/>.
 
 ---
 
@@ -114,7 +114,7 @@ first open serves the saved copy, the refetch lands for the next. That is by
 design, not a failed deploy. Check what is actually live before diagnosing:
 
 ```sh
-curl -s https://janfishes.github.io/tides/ | grep -o "BUILD_NUM = [0-9]*"
+curl -s https://janfishes.github.io/tideboard/ | grep -o "BUILD_NUM = [0-9]*"
 ```
 
 The update pill closes that gap on demand — its check is not a navigation, so it
