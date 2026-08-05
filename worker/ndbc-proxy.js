@@ -45,14 +45,20 @@ const CACHE_SECONDS = 600;
  * to have your quota spent by strangers. The first entry is the fallback used
  * when a request arrives with no Origin at all (curl, a health check). */
 const ALLOWED_ORIGINS = [
-  'https://janfishes.github.io',
-  'http://localhost:8799',
-  'http://127.0.0.1:8799',
-];
+  'https://janfishes.github.io',   // serves BOTH the tide board and WTF — an origin
+];                                 // is scheme+host, so the /WTF/ path is irrelevant
+
+/* Any localhost port, for previewing either app with `python3 -m http.server`.
+ * The two use different ports and pinning them here meant the worker rejected
+ * whichever one was not listed — which is how WTF's first test failed. A
+ * loopback origin cannot be reached by anyone else's browser, and the payload
+ * is public NOAA data either way, so this costs nothing. */
+const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const ok = ALLOWED_ORIGINS.includes(origin) || LOCALHOST.test(origin);
+  const allow = ok ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allow,
     'Vary': 'Origin',
