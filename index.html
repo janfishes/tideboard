@@ -600,50 +600,43 @@ const BUILTIN_LOCATIONS = [
 
        LOW   n=5  mean +188  median +189  sd 18  (SE 8)
              +187 +189 +216 +189 +160        (7/21 through 7/25)
-       HIGH  n=5  mean +154  median +148  sd 38  (SE 17)
-             +148 +216 +136 +102 +168        (7/21 through 7/25)
+       HIGH  n=6  mean +160  median +156  sd 29  (SE 12)
+             +148 +216 +136 +127 +168 +165   (7/21 through 7/26)
 
      LOW moved 170 -> 188. Five observations at sd 18 — tighter than any of
      WTF's Stevens gauges — with a standard error of about 8 minutes, so the
      stored 170 sits more than two of them below the measured mean. Real, not
      scatter. Three of the five land within two minutes of each other at
-     187/189/189, which is what a genuine lag looks like; the other two, +216
-     and +160, are the ordinary spread of timing a turn by eye.
+     187/189/189; the other two are the ordinary spread of timing a turn by eye.
 
-     The 7/22 low is 1:16 PM, not AM. It had no meridiem in the sheet and was
-     read here as AM, which still parsed — a low at 1:16 AM differences to +215
-     against the previous evening's NOAA low, and the day still came out with
-     one high and one low. Jan's correction moved it to the 10:07 AM low at
-     +189, which is why the mean fell 5 minutes and the sd with it. Worth
-     remembering that a wrong-but-plausible meridiem does not announce itself:
-     both readings fit the structure, and only one fits the water.
+     HIGH moved 144 -> 156, and 156 is the MEDIAN rather than the mean. The
+     highs carry one stubborn outlier at +216 (7/22) which drags the mean to
+     +160 and inflates the sd to 29, and there is a live question about whether
+     that reading is even an AM one — see the meridiem note below. The median is
+     +156 whether 7/22 is read as AM or PM, so the board can take a central
+     value now without waiting on the answer. That robustness is the whole
+     reason for preferring the median here; the mean swings 9 minutes on that
+     one row, the median does not move at all.
 
-     THE 7/20 LOW IS EXCLUDED, and it is worth saying why in full. Jan first
-     gave it as 11:10 AM, then corrected it to 12:50 PM with the note "a lot of
-     wind though". At 12:50 it differences to +270 against the inlet, which is
-     3.7 standard deviations above the mean of the other five — and the wind
-     note and the arithmetic were arrived at independently, which is about as
-     much confirmation as n=6 can offer. Folding it in would drag the lag to
-     +206 and inflate the sd from 21 to 34: it would make the board worse on
-     every ordinary day in order to honour one blown one.
+     THE 7/22 MERIDIEM, STILL OPEN. The sheet's 7/22 LOW carried no AM/PM and
+     was read here as AM until Jan corrected it to PM. Its HIGH is written
+     "6:56 AM" explicitly, and at AM it differences to +216, by far the worst
+     point in the set. At PM it differences to +163 and the high scatter
+     collapses — sd 29 -> 15, SE 12 -> 6, every point inside 127-168. Both
+     readings leave the day with one high and one low, so structure cannot
+     decide it. The sheet says AM and the sheet is not overridden on statistics
+     alone, so AM stands and the median absorbs it; but a stated AM on the same
+     day whose low turned out to be PM is worth one look at the original.
 
-     It is not thrown away, though. A hard blow moved low water here by about
-     77 minutes against an otherwise clean run of days — a measured figure for
-     how far wind can shift this water, which is exactly what the footnote's
-     warning about wind and runoff is describing. Predictions are astronomical;
-     that is what the astronomy is worth on a windy day in Turnbull Bay.
-
-     HIGH stays at 144. The measured mean is 154 but sd 38 puts the standard
-     error near 17, so 144 is inside the noise and there is nothing to justify
-     moving it; drop the single +216 outlier and the mean falls to 138, i.e. the
-     data cannot tell 138 from 154 and should not pretend to. A high in a
-     shallow bay is a long flat stand and is simply harder to time than the
-     sharp turn at low water — which is the honest reason the two columns differ
-     in quality, and why the sheet records wind alongside every reading.
+     A high in a shallow bay is a long flat stand and is simply harder to time
+     than the sharp turn at low water — which is the honest reason the two
+     columns differ in quality, and why the sheet records wind alongside every
+     reading.
 
      Provenance beyond the two photos, all from Jan on 2026-08-05: the 7/20 low
-     (12:50 PM, heavy wind) is in neither photo; the 7/21 low's gusts are his
-     corrected 16 mph, not the 13 shown.
+     (12:50 PM, heavy wind) and the 7/26 high (9:42 AM, WNW 5 g10) are in
+     neither photo; the 7/24 high is his corrected 8:15 PM at 1 ft 7 in, not the
+     7:50 PM shown; the 7/22 low is 1:16 PM; the 7/21 low's gusts are 16, not 13.
 
      WTF's own comment says Aqua Ct "carries no hs/ho/ls/lo" and was skipped by
      the height-knot list. Jan's sheet has the missing piece: a staff-gauge
@@ -673,7 +666,7 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:144, lo:188, measured:true,
+    lat:29.032633, lng:-80.946983, hi:156, lo:188, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
     srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
