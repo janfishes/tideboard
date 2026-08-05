@@ -1122,6 +1122,19 @@ async function fetchWx(){
    answering from the deployed board, re-measure before re-ordering; do not
    assume WTF's order transfers. Timeouts are short because the card repaints
    as soon as ANY source lands and the wind forecast no longer waits on it. */
+/* OUR OWN PROXY, once it is deployed. See worker/ — a ~40-line Cloudflare
+   Worker that fetches NDBC and adds the CORS header the browser needs.
+
+   Leave this as "" and the board falls back to the public relays below, which
+   is what it did until 2026-08-05, when every one of them failed from the live
+   site. Fill it in after `cd worker && npx wrangler login && npx wrangler
+   deploy` prints the URL, and the buoy stops depending on strangers.
+
+   It is deliberately a plain constant rather than a build step or a setting:
+   the whole app is one file with no build, and a new owner should be able to
+   point it at their own worker by editing one line. */
+const BUOY_PROXY = "";
+
 const ndbcTxt = id => 'https://www.ndbc.noaa.gov/data/realtime2/' + id + '.txt';
 const BUOY_SOURCES = [
   { name:'allorigins', ms:8000, url:id => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ndbcTxt(id)) },
@@ -1129,6 +1142,18 @@ const BUOY_SOURCES = [
   { name:'ndbc',       ms:4000, url:id => ndbcTxt(id) },
   { name:'codetabs',   ms:6000, url:id => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(ndbcTxt(id)) }
 ];
+/* Our worker first when it exists, then the public relays as a safety net.
+   Its timeout is short because a Cloudflare edge either answers fast or is not
+   there; there is no slow-but-fine case to wait out. */
+function buoySources(){
+  const list = BUOY_SOURCES.slice();
+  if(BUOY_PROXY){
+    list.unshift({ name:'worker', ms:5000,
+                   url:id => BUOY_PROXY.replace(/\/$/,'') + '/?station=' + encodeURIComponent(id) });
+  }
+  return list;
+}
+
 function fetchT(url, ms){
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -1168,7 +1193,7 @@ function loadBuoy(){
 }
 async function fetchBuoy(){
   let last = null;
-  for(const src of BUOY_SOURCES){
+  for(const src of buoySources()){
     try{
       const r = await fetchT(src.url(NDBC_ID), src.ms);
       if(!r.ok) throw new Error(src.name + ' ' + r.status);

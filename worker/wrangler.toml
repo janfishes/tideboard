@@ -1,0 +1,13 @@
+# Deploy:  cd worker && npx wrangler login && npx wrangler deploy
+#
+# No account_id here on purpose — wrangler picks it up from your login, so this
+# file carries nothing personal and nothing secret. Whoever inherits the repo
+# can deploy their own copy under their own account by running the two commands
+# above; nothing needs editing first.
+
+name = "ndbc-proxy"
+main = "ndbc-proxy.js"
+compatibility_date = "2026-08-05"
+
+# Serves at https://ndbc-proxy.<your-subdomain>.workers.dev
+workers_dev = true
