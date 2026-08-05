@@ -319,13 +319,24 @@
     find an edge or a hole worth fishing. <b>Read your depth sounder for the water under your boat.</b>
     <br><br>
     <b>Wind and sea.</b> Wind and wave forecasts are the National Weather Service gridded forecast for the inlet
-    (Melbourne office). Present sea state and swell direction are the live reading from <b>NDBC buoy 41070</b>,
-    13.8 nm off the inlet. The NWS grid does not publish a wave <i>direction</i> forecast for this point, so
+    (Melbourne office); the wind for the hour around now is the live reading from the <b>New Smyrna Beach
+    airport</b> anemometer 2.5 nm away, or Daytona at 9.6 nm when that one is not reporting. Present sea state
+    and swell direction are the live reading from <b>NDBC buoy 41070</b>, 13.8 nm off the inlet. NDBC publishes
+    no header that lets a web page read it directly, so that one reading comes in through a small relay this
+    board runs itself; if the card says it could not be had, the data is still NOAA's and it is the relay, the
+    buoy or your signal that is missing, never a different source substituted for it. The NWS grid does not publish a wave <i>direction</i> forecast for this point, so
     beyond the buoy's current reading the board assumes the sea follows the forecast wind &mdash; good for a
     local summer chop, poor for a distant ground swell. Every window says which of the two it was built on.
     <br><br>
-    Developed by Jan G. Neal, 2026. Tide, depth, wind and buoy data courtesy NOAA &mdash; NOS/CO-OPS,
-    NCEI, the National Weather Service and the National Data Buoy Center.
+    <b>Every number on this page is NOAA's.</b> Tides and datums from NOS/CO-OPS; depth from NCEI and the
+    Office of Coast Survey (BlueTopo, CUDEM); wind, waves and the airport observations from the National
+    Weather Service; sea state from the National Data Buoy Center. Nothing here is bought, scraped from a
+    commercial forecast, or inferred from a source that cannot be named &mdash; where a figure is Jan's own
+    measurement rather than NOAA's, such as a calibrated lag or a sounded depth, the card says so on its face.
+    Solar and lunar times are computed on your device from SunCalc (&copy; 2014 Vladimir Agafonkin,
+    BSD-2-Clause).
+    <br><br>
+    Developed by Jan G. Neal, 2026.
   </div>
 </div>
 
