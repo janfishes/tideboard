@@ -189,21 +189,29 @@
     font-size:11px;color:var(--ink-soft);line-height:1.45}
   /* radar & satellite */
   .radarcard{border:1px solid var(--hair);border-radius:4px;background:var(--card);margin:0 0 14px;overflow:hidden}
+  /* A real button, not a grey strip: this is the thing you check before you go, and
+     the first build buried it in the same styling as the how-to legend. */
   .radarcard summary{
-    cursor:pointer;padding:9px 12px;font-family:var(--mono);font-size:12px;
-    font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);list-style:none;
+    cursor:pointer;padding:11px 12px;font-family:var(--mono);font-size:13px;
+    font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--depth);color:#fff;list-style:none;
+    display:flex;align-items:center;gap:8px;
   }
+  .radarcard summary .hint{margin-left:auto}
   .radarcard summary::-webkit-details-marker{display:none}
-  .radarcard summary::before{content:"\25b8  "}
-  .radarcard[open] summary::before{content:"\25be  "}
+  .radarcard summary::before{content:"\25b8";font-size:11px}
+  .radarcard[open] summary::before{content:"\25be";font-size:11px}
+  .radarcard summary .hint{font-weight:400;font-size:10px;letter-spacing:.04em;opacity:.85;text-transform:none}
+  .radarcard[open] summary .hint{display:none}
   /* height:0 + padding-bottom keeps the frame's shape on every browser — a background
-     still paints across the padding box, and it needs no aspect-ratio support. 93% is
-     the crop's 279/300. The size and position are the crop itself: 640% = 1920/300, and
-     the offsets put x=813,y=447 of the source at the frame's top left. */
+     still paints across the padding box, and it needs no aspect-ratio support. The
+     padding, size and position are all written from ERAU_BOX by radarFrameSetup(),
+     so the crop lives in one place in the script rather than in two here. */
   .radarwrap{
-    width:100%;height:0;padding-bottom:93%;background:#0E1F2E no-repeat 50.19% 44.66%;
-    background-size:640% auto;
+    position:relative;width:100%;height:0;padding-bottom:89.583%;
+    background:#0E1F2E no-repeat 50.764% 41.765%;background-size:400% auto;
   }
+  .radar-pins{position:absolute;inset:0;width:100%;height:100%}
   .radar-bar{
     display:flex;justify-content:space-between;align-items:center;gap:8px;
     padding:7px 12px;border-top:1px solid var(--hair);
@@ -343,8 +351,9 @@
             <b>No red block does not mean all clear</b>: if the alert feed cannot be reached, the card
             simply has nothing to show.</dd>
         <dt>Radar &amp; satellite</dt>
-        <dd>Live radar over the satellite picture, framed on this coast &mdash; Flagler Beach to Cape
-            Canaveral, inland to DeLand, about 40 nm offshore. It loads <b>only when you open it</b>,
+        <dd>Live radar over the satellite picture, framed on this coast &mdash; St. Augustine to
+            Melbourne, inland past Ocala, about 50 nm offshore, with <b>Daytona Beach, Port Orange,
+            New Smyrna Beach</b> and <b>Ponce Inlet</b> marked. It loads <b>only when you open it</b>,
             because it costs about 0.3 MB a look; tap <b>Refresh</b> for the current frame. Frames are
             published every 5 minutes, so the newest one can be a few minutes old.</dd>
         <dt>Feeding times (tan card)</dt>
@@ -385,16 +394,17 @@
        which would throw away a loaded radar picture and re-fetch a third of a
        megabyte each time. This card loads only when opened, and only then. -->
   <details class="radarcard" id="radarBox">
-    <summary>Radar &amp; satellite</summary>
+    <summary>Radar &amp; satellite <span class="hint">tap to load &middot; ~0.3 MB</span></summary>
     <div class="radarwrap" id="radarWrap"></div>
     <div class="radar-bar">
       <span id="radarStamp">Tap the arrow to load &mdash; about 0.3 MB</span>
       <button class="radar-refresh" id="radarRefresh">Refresh</button>
     </div>
     <div class="radar-foot">
-      Ponce Inlet is centre frame; the view runs Flagler Beach to Cape Canaveral and about 40 nm out.
-      Radar reflectivity and any warning boxes are drawn over the satellite picture, so the cloud you
-      see is real cloud. Imagery by the
+      Ponce Inlet is centre frame, marked with a red cross; the view runs St. Augustine to Melbourne
+      and about 50 nm offshore. Radar reflectivity and any warning boxes are drawn over the satellite
+      picture, so the cloud you see is real cloud. The picture is about half a mile to the pixel &mdash;
+      it will not stay sharp if you zoom the page. Imagery by the
       <a href="https://wx.erau.edu/erau_sat/" target="_blank" rel="noopener">Embry-Riddle Aeronautical
       University</a> meteorology department, Daytona Beach, refreshed every 5 minutes.
     </div>
@@ -500,7 +510,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 10;
+const BUILD_NUM = 11;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -1795,10 +1805,10 @@ function feedingCardHTML(ds, de){
    overlay out of a frame by colour, find Cape Canaveral's apex in it, and fit
    the scale against the coastline further north. The result — 188 px per degree
    of longitude, 214 per degree of latitude, with the cape apex at (1042,702) —
-   puts Ponce Inlet at (979,570), which is where it lands. That gives the box
-   x 813..1113, y 447..726: Flagler Beach down to the cape, DeLand out to about
-   40 nm offshore. To reframe it, recompute from those numbers rather than
-   nudging the percentages by eye.
+   puts Ponce Inlet at (971,570), which is where it lands. The fit is kept in
+   ERAU_FIT below and everything else is derived from it: the crop box, the
+   background maths, and the city pins. To reframe, change ERAU_BOX and let the
+   rest follow — never nudge the percentages by eye.
 
    The URLs carry a UTC timestamp, and there is no index to ask, so the newest
    frame is found by probing backwards in 5-minute steps. RADAR lands on the
@@ -1811,6 +1821,38 @@ function feedingCardHTML(ds, de){
 const ERAU_BASE = "https://wx.erau.edu/images/sat_erau/";
 const ERAU_SECTOR = "DAB";
 let radarLoaded = false;
+
+/* The hand-measured georeference, and the one place it is written down. The crop
+   box, the background maths and the city pins are all derived from it below, so
+   moving the frame means editing BOX and nothing else. */
+const ERAU_FIT = { x0:1042, y0:702, lat0:28.46, lon0:-80.53, pxLon:188, pxLat:214, W:1920, H:1280 };
+/* v2 of the box, 480x430 where it was 300x279. The tighter crop was sharper on
+   paper and blurry in the hand: 300 source pixels stretched across a ~390pt phone
+   at 3x device pixels is a 4x enlargement, and no amount of CSS invents detail.
+   480 brings that to about 2.4x. There is no higher-resolution source to reach
+   for — ERAU's sector is 1920x1280 and its mesoscale sectors carry no images —
+   so the only currency for sharpness is field of view, and this is the trade:
+   St. Augustine to Melbourne, Ocala out to roughly 50 nm offshore. */
+const ERAU_BOX = { x:731, y:355, w:480, h:430 };
+function erauXY(lat, lon){
+  return { x: ERAU_FIT.x0 + (lon - ERAU_FIT.lon0)*ERAU_FIT.pxLon,
+           y: ERAU_FIT.y0 - (lat - ERAU_FIT.lat0)*ERAU_FIT.pxLat };
+}
+/* Marked because a radar picture with no landmarks is just weather-coloured
+   noise — you cannot tell whether that cell is over your house or over Orlando.
+   Ponce is drawn differently from the towns: it is the one you are deciding on.
+
+   These four towns sit inside twenty miles of each other, so at this scale their
+   labels collide into mush if they are all offset the same way. Each one carries
+   its own nudge: the two river towns label WEST over the land, the two on the
+   coast label EAST over the water, and each pair is separated vertically. Move a
+   pin and you will have to re-tune its neighbour. */
+const ERAU_PINS = [
+  { name:"Daytona Beach",    lat:29.2108, lon:-81.0228, dx:-11, dy:-3 },
+  { name:"Port Orange",      lat:29.1383, lon:-81.0056, dx:-11, dy:12 },
+  { name:"Ponce Inlet",      lat:29.0779, lon:-80.9085, dx: 12, dy: 1, inlet:true },
+  { name:"New Smyrna Beach", lat:29.0258, lon:-80.9270, dx: 12, dy:15 }
+];
 
 function erauURL(product, d){
   const p = n => String(n).padStart(2, '0');
@@ -1838,6 +1880,38 @@ async function newestFrame(product, offsetMin, tries){
     try{ await loadImg(url, 8000); return { url, when: new Date(t) }; }catch(e){}
   }
   return null;
+}
+/* The frame's geometry, the pins and the crop all come off ERAU_BOX so they can
+   never drift apart. background-position as a percentage aligns the same point of
+   image and box, which is exactly x/(W-w) — the scale cancels, so it stays true at
+   any width. The pin layer is an SVG whose viewBox IS the crop box in source
+   pixels, so a pin is placed in the imagery's own coordinates and rides along. */
+function radarFrameSetup(){
+  const wrap = document.getElementById('radarWrap');
+  if(!wrap) return;
+  const B = ERAU_BOX, F = ERAU_FIT;
+  wrap.style.paddingBottom     = (B.h/B.w*100).toFixed(3) + '%';
+  wrap.style.backgroundSize    = (F.W/B.w*100).toFixed(3) + '% auto';
+  wrap.style.backgroundPosition = (B.x/(F.W-B.w)*100).toFixed(3) + '% '
+                                + (B.y/(F.H-B.h)*100).toFixed(3) + '%';
+  const pins = ERAU_PINS.map(p => {
+    const { x, y } = erauXY(p.lat, p.lon);
+    const lx = x + p.dx, ly = y + p.dy;
+    return `<g>
+      <line x1="${x}" y1="${y}" x2="${lx + (p.dx < 0 ? 2 : -2)}" y2="${ly - 4}"
+            stroke="#0E1F2E" stroke-width="2.6" opacity=".55"/>
+      ${p.inlet
+        ? `<path d="M${x-7},${y} L${x+7},${y} M${x},${y-7} L${x},${y+7}" stroke="#0E1F2E" stroke-width="4.6" stroke-linecap="round"/>
+           <path d="M${x-7},${y} L${x+7},${y} M${x},${y-7} L${x},${y+7}" stroke="#FF4A33" stroke-width="2.4" stroke-linecap="round"/>`
+        : `<circle cx="${x}" cy="${y}" r="4.6" fill="#0E1F2E"/><circle cx="${x}" cy="${y}" r="2.4" fill="#fff"/>`}
+      <text x="${lx}" y="${ly}" text-anchor="${p.dx < 0 ? 'end' : 'start'}"
+            font-size="14" font-family="ui-monospace,Menlo,monospace" font-weight="700"
+            fill="${p.inlet ? '#FF7A66' : '#fff'}" stroke="#0E1F2E" stroke-width="3.4"
+            paint-order="stroke">${esc(p.name)}</text>
+    </g>`;
+  }).join('');
+  wrap.innerHTML = `<svg class="radar-pins" viewBox="${B.x} ${B.y} ${B.w} ${B.h}"
+    aria-hidden="true">${pins}</svg>`;
 }
 async function loadRadar(){
   const wrap = document.getElementById('radarWrap');
@@ -2016,7 +2090,8 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 function render(){
   const [ds,de] = dayWindow(activeDay);
   const isToday = activeDay === 0;
-  let html = inletCardHTML(ds,de) + weatherCardHTML(ds,de) + feedingCardHTML(ds,de);
+  let html = inletCardHTML(ds,de) + weatherCardHTML(ds,de)
+           + '<div id="radarSlot"></div>' + feedingCardHTML(ds,de);
 
   const ordered = LOCATIONS.slice().sort((a,b) =>
     (offsets[a.key].hi + offsets[a.key].lo) - (offsets[b.key].hi + offsets[b.key].lo));
@@ -2063,6 +2138,12 @@ function render(){
     </div>`;
   }
   document.getElementById("content").innerHTML = html;
+  /* The radar card lives in the static markup and is MOVED into the slot, never
+     rebuilt: render() runs every minute, and re-writing that element would throw
+     away a loaded picture and re-fetch 0.3 MB. Moving a node keeps its element,
+     its <details> state and its backgrounds intact. */
+  const slot = document.getElementById("radarSlot"), box = document.getElementById("radarBox");
+  if(slot && box) slot.appendChild(box);
   renderDaynav();
 }
 
@@ -2334,6 +2415,7 @@ function showUpdatePill(){
       if(preds.length && (!loadWeather.last || Date.now() - loadWeather.last > 900000)) loadWeather();
     }
   });
+  radarFrameSetup();
   document.getElementById('radarBox').addEventListener('toggle', e => {
     if(e.target.open && !radarLoaded){ radarLoaded = true; loadRadar(); }
   });
