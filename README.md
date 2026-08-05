@@ -142,10 +142,14 @@ from a `file://` double-click.
   purpose). Its tide *times* are unaffected. Note also that a gauge coordinate
   is only used here for depth and for fitting the lag curve, both of which are
   inside Jan's rule that gauge coordinates never serve as GPS positions.
-- **Crook's Corner's depth is flagged rough.** Nearest contour is 410 m away, so
-  the strip prints the distance and hedges "may dry out" rather than asserting
-  it. Worth checking against what Jan actually sees there — if it does not dry,
-  the position is on a flat beside the hole he fishes rather than in it.
+- **The survey is not trustworthy in skinny water, and the board now says so.**
+  Crook's Corner was the proof: the contour blocks put the bottom at about
+  1.5 ft — which would have read as drying out at low water — while the hole
+  actually holds 8-10 ft and never less. The survey was extrapolating from
+  contours 410 m away that describe a sandbar east of the dock, not the channel.
+  A sounding you have taken yourself always wins: enter it as **depth at dead
+  low** in the lag dialog and it becomes the headline figure, with the survey
+  shown underneath as a second opinion. Crook's Corner ships with 8 ft.
 - **Icons are WTF's, as placeholders.** The board needs its own artwork.
 - **No iPhone launch images.** WTF has eleven; without them a home-screen icon
   opens to a white screen for a second or two. Same fix if it becomes annoying:

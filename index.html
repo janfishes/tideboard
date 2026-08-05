@@ -334,6 +334,10 @@
        Watch one real high or low at this spot, compare to the inlet time, and set the difference here.</p>
     <div class="off-row"><label for="inHigh">High tide lag (min)</label><input type="number" id="inHigh" step="5"></div>
     <div class="off-row"><label for="inLow">Low tide lag (min)</label><input type="number" id="inLow" step="5"></div>
+    <p style="margin-top:12px">Depth you have actually seen here at dead low, if you know it. A figure you
+       have sounded beats the survey every time &mdash; the survey grids miss docks, holes and dredged cuts,
+       and around here they miss whole channels. Leave blank to use the survey.</p>
+    <div class="off-row"><label for="inSounded">Depth at dead low (ft)</label><input type="number" id="inSounded" step="0.5" min="0" max="80"></div>
   </div>
   <div class="dlg-foot">
     <button class="btn danger" id="btnRemove">Remove spot</button>
@@ -489,6 +493,28 @@ const SunCalc = (function(){
    comment at both of its tide tables saying so; the board follows the rule. */
 const INLET = { lat: 29.077867, lng: -80.908517 };
 
+/* SOUNDED DEPTHS — a figure you have actually seen beats the survey, always.
+
+   Crook's Corner is why this exists. The contour blocks put the bottom there at
+   about 1.5 ft, off contours 410 m away; Jan's answer was that the hole holds
+   8-10 ft and never less, and that the shallow water the survey is describing is
+   a sandbar east of the dock that goes high and dry. The survey is not slightly
+   off there — it has no data for that hole at all and was extrapolating across
+   a bar into a channel. No amount of interpolation fixes that. A sounding does.
+
+   A soundedFt is the depth at MLLW — what a chart would print — so the water is
+   simply soundedFt + the tide, with no NAVD88 conversion in the way (that offset
+   exists only to drag the survey's NAVD88 grid onto the tide's MLLW datum). It
+   is entered as the depth at DEAD LOW, which is the number anyone actually
+   remembers about a spot, and it is per-spot and editable from the same dialog
+   as the lag: same idea as calibrating a lag against a real turn, one layer
+   down. Where a sounding exists the survey is shown underneath it as a
+   second opinion, never as the headline. */
+const soundedFor = loc => {
+  const u = userSounded[loc.key];
+  return (u != null && isFinite(u)) ? u : (isFinite(loc.soundedFt) ? loc.soundedFt : null);
+};
+
 /* NOAA station 8721138 published datums, on the station datum:
      MLLW 2.94 ft, NAVD88 5.19 ft  ->  NAVD88 stands 2.25 ft ABOVE MLLW.
    The depth grids are NAVD88 and the tide predictions are MLLW, so:
@@ -534,6 +560,15 @@ const BUILTIN_LOCATIONS = [
      Both sit in Turnbull Bay; Crook's Corner lands within 500 m of WTF's
      Turnbull Creek pin, which is the check that the conversion is right.
 
+     CROOK'S CORNER MOVED AGAIN, same day, on Jan's correction: 29°02.580'N
+     080°57.589'W, a few yards NORTH of the first figure. The first one was off
+     a long dock where the water bottoms out at 3-4 ft; this one holds 8-10 ft
+     all the way down. It also carries a soundedFt, and it has to — see the note
+     on SOUNDED DEPTHS below. The sandbar Jan describes east of the dock, which
+     goes high and dry, is almost certainly what the survey's 1 and 2 ft
+     contours 410 m away were describing: the contour data has nothing at all to
+     say about the hole itself.
+
      DJM IS A TIDE-GAUGE COORDINATE — the Aqua Ct gauge that came out of WTF.
      Jan's standing rule is that a gauge coordinate is only ever good for
      interpolating tides and never for a GPS position, a distance or a heading,
@@ -548,7 +583,7 @@ const BUILTIN_LOCATIONS = [
      Jan's note that "the lag times are valid" is why the figures below are
      untouched — the positions were the only thing missing. */
   { key:"turnbull",  name:"Crook's Corner",          charted:"Turnbull Bay",
-    lat:29.042617, lng:-80.959900, hi:120, lo:140, est:true },
+    lat:29.043000, lng:-80.959817, hi:120, lo:140, est:true, soundedFt:8 },
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
     lat:29.032733, lng:-80.947100, hi:135, lo:160, est:true },
   { key:"dunlawton", name:"Dunlawton Bridge",        charted:"Halifax River, Dunlawton Bridge",
@@ -567,6 +602,7 @@ const WTF_SPOTS = [["Smith Creek",29.421817,-81.106433,"Creek"],["Bulow Creek",2
 let LOCATIONS = [];
 let offsets   = {};          // key -> {hi,lo}
 let userPos   = {};          // key -> {lat,lng}   (positions set by hand)
+let userSounded = {};        // key -> ft at MLLW  (depths actually seen)
 let addedSpots = [];         // [{key,name,charted,lat,lng,hi,lo}]
 let preds     = [];          // [{time:Date, ft:Number, type:'H'|'L'}]
 let activeDay = 0;
@@ -574,7 +610,8 @@ let stationUsed = null;
 let peakEbbKt = PEAK_EBB_KT_DEFAULT;
 
 const LS = {
-  lags:'tide-lags', pos:'tide-positions', added:'tide-added-spots', ebb:'tide-peak-ebb'
+  lags:'tide-lags', pos:'tide-positions', added:'tide-added-spots', ebb:'tide-peak-ebb',
+  sounded:'tide-sounded'
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -596,6 +633,10 @@ function loadPrefs(){
     const raw = lsGet(LS.pos);
     if(raw) userPos = JSON.parse(raw) || {};
   }catch(e){ userPos = {}; }
+  try{
+    const raw = lsGet(LS.sounded);
+    if(raw) userSounded = JSON.parse(raw) || {};
+  }catch(e){ userSounded = {}; }
   const pe = parseFloat(lsGet(LS.ebb));
   if(pe > 0.4 && pe < 9) peakEbbKt = pe;
 
@@ -608,6 +649,7 @@ function loadPrefs(){
 const saveOffsets = () => lsSet(LS.lags,  JSON.stringify(offsets));
 const savePos     = () => lsSet(LS.pos,   JSON.stringify(userPos));
 const saveAdded   = () => lsSet(LS.added, JSON.stringify(addedSpots));
+const saveSounded = () => lsSet(LS.sounded, JSON.stringify(userSounded));
 
 /* ---------------------------------------------------------------------
    NOAA TIDE PREDICTIONS
@@ -1320,6 +1362,25 @@ function feedingCardHTML(ds, de){
    THE DEPTH STRIP
    --------------------------------------------------------------------- */
 function depthStripHTML(loc, evAll, ds, de){
+  const sounded = soundedFor(loc);
+  if(sounded != null){
+    const now = new Date();
+    const tn = activeDay === 0 ? tideAt(evAll, now) : null;
+    const bits = [];
+    if(tn) bits.push(`<span>Water now <b>~${(sounded + tn.ft).toFixed(1)} ft</b></span>`);
+    const lows = evAll.filter(e => e.type === "L" && e.time >= ds && e.time < de);
+    if(lows.length){
+      const lo = lows.reduce((a,b) => b.ft < a.ft ? b : a);
+      bits.push(`<span>${fmtT(lo.time)} low <b>~${(sounded + lo.ft).toFixed(1)} ft</b></span>`);
+    }
+    let note = `your sounding: ${sounded} ft at dead low`;
+    // the survey gets a line as a second opinion, never as the headline
+    ensureDepth(loc);
+    const sv = depthCache.get(loc.key);
+    if(sv) note += ` \u00b7 survey would say ~${(sv.ft - NAVD88_ABOVE_MLLW).toFixed(1)} ft`;
+    bits.push(`<span class="sub">${note}</span>`);
+    return `<div class="depth-strip">${bits.join('')}</div>`;
+  }
   if(!isFinite(loc.lat) || !isFinite(loc.lng)){
     return `<div class="depth-strip"><span class="sub">No position for this spot, so no depth.</span>
       <button class="setpos" onclick="openSpotDlg('${loc.key}')">set position</button></div>`;
@@ -1463,6 +1524,8 @@ function openDlg(key){
   document.getElementById("dlgTitle").textContent = "Adjust lag — " + loc.name;
   document.getElementById("inHigh").value = offsets[key].hi;
   document.getElementById("inLow").value  = offsets[key].lo;
+  const sd = soundedFor(loc);
+  document.getElementById("inSounded").value = (sd == null ? "" : sd);
   document.getElementById("btnRemove").style.display = loc.added ? "" : "none";
   dlg.showModal();
 }
@@ -1472,14 +1535,21 @@ document.getElementById("btnSave").onclick = () => {
     hi: parseInt(document.getElementById("inHigh").value, 10) || 0,
     lo: parseInt(document.getElementById("inLow").value, 10) || 0
   };
+  const sv = document.getElementById("inSounded").value.trim();
+  const sn = parseFloat(sv);
+  if(sv === "" || !isFinite(sn) || sn < 0){ delete userSounded[editingKey]; }
+  else { userSounded[editingKey] = sn; }
+  saveSounded();
+  depthCache.delete(editingKey);
   saveOffsets();
   document.getElementById("dlg").close();
   render();
 };
 document.getElementById("btnRemove").onclick = () => {
   addedSpots = addedSpots.filter(s => s.key !== editingKey);
-  delete offsets[editingKey]; delete userPos[editingKey]; depthCache.delete(editingKey);
-  saveAdded(); savePos(); saveOffsets();
+  delete offsets[editingKey]; delete userPos[editingKey]; delete userSounded[editingKey];
+  depthCache.delete(editingKey);
+  saveAdded(); savePos(); saveOffsets(); saveSounded();
   document.getElementById("dlg").close();
   loadPrefs(); render();
 };
