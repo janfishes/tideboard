@@ -1133,7 +1133,7 @@ async function fetchWx(){
    It is deliberately a plain constant rather than a build step or a setting:
    the whole app is one file with no build, and a new owner should be able to
    point it at their own worker by editing one line. */
-const BUOY_PROXY = "";
+const BUOY_PROXY = "https://ndbc-proxy.janfishes.workers.dev";
 
 const ndbcTxt = id => 'https://www.ndbc.noaa.gov/data/realtime2/' + id + '.txt';
 const BUOY_SOURCES = [
