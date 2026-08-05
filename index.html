@@ -1012,6 +1012,33 @@ function ensureDepth(loc){
    --------------------------------------------------------------------- */
 const NWS_GRID = "https://api.weather.gov/gridpoints/MLB/42,94";   // the inlet's forecast cell
 const NDBC_ID  = "41070";
+
+/* OBSERVED WIND, 2.5 nm from the bar.
+
+   The board's wind was entirely FORECAST — the NWS gridded model for the
+   inlet's cell. Fine for planning tomorrow, but for the hour you are actually
+   standing on the dock deciding, a real anemometer beats a model every time.
+
+   KEVB, New Smyrna Beach Municipal, sits at 29.057/-80.949: about 2.5 nm from
+   the inlet, closer than anything else that reports. It is an airport ASOS, so
+   it is inland of the beach and will read lighter than the water on a sea
+   breeze — but it is a measurement, and it is on api.weather.gov, which sends
+   Access-Control-Allow-Origin and therefore needs no relay. KDAB (Daytona
+   Beach, ~10 nm) backs it up when EVB goes quiet.
+
+   Used ONLY for hours near now. Past that the forecast is all there is, and
+   pretending an observation describes tomorrow afternoon would be worse than
+   the model it replaced.
+
+   KEVB is a small field and does NOT report around the clock — checked at
+   01:00 local and its latest was three hours old, which is why the staleness
+   test and the KDAB fallback are not decoration. Overnight the board will
+   usually be quoting Daytona at 9.6 nm; in daylight, when anyone is deciding
+   whether to run the bar, it should have New Smyrna at 2.5. */
+const OBS_STATIONS = ["KEVB", "KDAB"];
+const OBS_MAX_AGE_MS = 100*60000;     // an ASOS reports hourly; past ~100 min it is stale
+const OBS_APPLIES_MS = 75*60000;      // and it only speaks for the hour around now
+let obsWind = null, obsErr = null;
 let wx = null;      // {wind:[{t0,t1,deg,mph,gust}], wave:[{t0,t1,ft}], per:[{t0,t1,s}]}
 let buoy = null;    // {obsTime, wvht_ft, dpd, mwd}
 let wxErr = null, buoyErr = null;
@@ -1043,6 +1070,32 @@ const spanAt = (arr, t) => {
   for(const s of arr){ if(t >= s.t0 && t < s.t1) return s.v; }
   return null;
 };
+
+async function fetchObsWind(){
+  let last = null;
+  for(const id of OBS_STATIONS){
+    try{
+      const r = await fetchT("https://api.weather.gov/stations/" + id + "/observations/latest",
+                             8000);
+      if(!r.ok) throw new Error(id + " " + r.status);
+      const pr = (await r.json()).properties;
+      const deg = pr.windDirection && pr.windDirection.value;
+      const kmh = pr.windSpeed && pr.windSpeed.value;
+      const gst = pr.windGust && pr.windGust.value;
+      const when = new Date(pr.timestamp);
+      if(kmh == null || isNaN(when.getTime())) throw new Error(id + " reported no wind");
+      if(Date.now() - when.getTime() > OBS_MAX_AGE_MS) throw new Error(id + " reading is stale");
+      // A calm ASOS reports direction 0 with speed 0. That is not "north" — it
+      // is "no wind", and giving it a heading would invent an opposition that
+      // is not there.
+      return { id, when, deg: (kmh > 0 ? deg : null), mph: kmh*0.621371,
+               gust: gst == null ? null : gst*0.621371,
+               name: id === "KEVB" ? "New Smyrna Beach airport" : "Daytona Beach airport",
+               nm:   id === "KEVB" ? 2.5 : 9.6 };
+    }catch(e){ last = e; }
+  }
+  throw last || new Error("no observed wind");
+}
 
 async function fetchWx(){
   const r = await fetch(NWS_GRID, { headers:{ "Accept":"application/geo+json" } });
@@ -1177,8 +1230,16 @@ function inletAt(t, inletEvents, mx){
   const flowDeg  = td.falling ? EBB_HEADING : FLOOD_HEADING;
 
   // sea: buoy direction while it is fresh, forecast wind direction after that
-  const windDeg = spanAt(wx && wx.dir, t);
-  const windMph = spanAt(wx && wx.wind, t);
+  let windDeg = spanAt(wx && wx.dir, t);
+  let windMph = spanAt(wx && wx.wind, t);
+  // ...but for the hour around NOW, a real anemometer 2.5 nm away wins
+  let windObs = false;
+  if(obsWind && Math.abs(t - Date.now()) < OBS_APPLIES_MS
+     && Date.now() - obsWind.when.getTime() < OBS_MAX_AGE_MS){
+    if(obsWind.deg != null){ windDeg = obsWind.deg; }
+    windMph = obsWind.mph;
+    windObs = true;
+  }
   let hs   = spanAt(wx && wx.wave, t);
   let per  = spanAt(wx && wx.per,  t);
   let seaFromDeg = null, src = null;
@@ -1199,7 +1260,7 @@ function inletAt(t, inletEvents, mx){
   const { amp, ratio } = waveAmplification(along, per || 7);
   const steep = hs * amp;
 
-  return { t, td, speedKt, flowDeg, windDeg, windMph, hs, per, seaFromDeg, src,
+  return { t, td, speedKt, flowDeg, windDeg, windMph, windObs, hs, per, seaFromDeg, src,
            along, amp, ratio, steep, opposing: along < 0 };
 }
 
@@ -1271,6 +1332,12 @@ function windowWhy(w){
   bits.push(`${mid.hs.toFixed(1)} ft sea from the ${degToCompass(mid.seaFromDeg)}`
             + (mid.per ? ` at ${Math.round(mid.per)} sec` : ''));
   if(mid.windMph != null && mid.windDeg != null){
+    /* No "measured" tag here on purpose. A window can run sixteen hours and its
+       description is built from the sample at its MIDDLE, so the tag would have
+       appeared or vanished depending on where that midpoint happened to fall —
+       and would have implied the whole stretch was observed when at most an hour
+       of it can be. The foot line carries the measurement instead, where it can
+       say plainly which hour it speaks for. */
     bits.push(`wind ${degToCompass(mid.windDeg)} ${Math.round(mid.windMph)} mph`);
   }
   let tail;
@@ -1324,9 +1391,19 @@ function inletCardHTML(ds, de){
   }else{
     prov = 'No wind or sea data could be fetched. Windows below are tide only &mdash; they say nothing about the sea.';
   }
+  let obsLine = '';
+  if(obsWind){
+    obsLine = `<br>Wind for the hour around now is <b>measured</b> at ${obsWind.name}, `
+            + `${obsWind.nm} nm from the bar &mdash; `
+            + (obsWind.deg == null ? 'calm' : degToCompass(obsWind.deg) + ' ' + Math.round(obsWind.mph) + ' mph')
+            + (obsWind.gust ? ', gusting ' + Math.round(obsWind.gust) : '')
+            + ` (${ageWords(Date.now() - obsWind.when.getTime())}). It is an inland airport, so on a sea `
+            + `breeze it reads lighter than the water.`;
+  }
   const errs = [];
   if(wxErr)   errs.push('wind/wave forecast: ' + wxErr);
   if(buoyErr) errs.push('buoy: ' + buoyErr);
+  if(obsErr)  errs.push('observed wind: ' + obsErr);
 
   return `<div class="inlet">
     <div class="inlet-head">
@@ -1339,7 +1416,7 @@ function inletCardHTML(ds, de){
     <div class="ribbon">${ribbon}</div>
     <div class="ribbon-ax"><span>12a</span><span>6a</span><span>noon</span><span>6p</span><span>12a</span></div>
     ${rows}
-    <div class="inlet-foot">${prov}${errs.length ? '<br>Could not reach &mdash; ' + errs.join('; ') + '.' : ''}</div>
+    <div class="inlet-foot">${prov}${obsLine}${errs.length ? '<br>Could not reach &mdash; ' + errs.join('; ') + '.' : ''}</div>
   </div>`;
 }
 function ageWords(ms){
@@ -1775,6 +1852,10 @@ function loadWeather(){
   fetchBuoy()
     .then(b => { buoy = b; buoyErr = null; })
     .catch(e => { buoyErr = e.message; })
+    .then(render);
+  fetchObsWind()
+    .then(o => { obsWind = o; obsErr = null; })
+    .catch(e => { obsErr = e.message; })
     .then(render);
 }
 
