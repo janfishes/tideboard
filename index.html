@@ -168,6 +168,25 @@
   .feed-ev .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--feed);font-weight:700}
   .feed-ev .t{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
   .feed-ev .sub{font-size:10px;color:var(--ink-soft)}
+  /* town weather */
+  .wxcard{border:1px solid var(--hair);border-radius:4px;background:var(--card);margin-bottom:14px;overflow:hidden}
+  .wxcard .wx-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 12px;border-bottom:1px solid var(--hair)}
+  .wxcard .wx-title{font-weight:700;font-size:15px}
+  .wxcard .wx-sub{font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em}
+  .wxrow{display:flex;gap:4px 12px;align-items:baseline;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--hair)}
+  .wxrow:last-child{border-bottom:0}
+  .wxrow .town{font-weight:700;font-size:13px;flex:1 1 auto}
+  .wxrow .temps{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap}
+  .wxrow .temps .lo{font-weight:400;color:var(--ink-soft)}
+  .wxrow .pop{font-family:var(--mono);font-size:11px;color:var(--depth);white-space:nowrap}
+  .wxrow .sky{flex:1 1 100%;font-size:12px;color:var(--ink-soft);line-height:1.4}
+  .wxrow .sky .storm{color:var(--rough);font-weight:700}
+  .wxalert{padding:9px 12px;background:var(--stop-soft);border-bottom:2px solid var(--stop);font-size:12.5px;line-height:1.45}
+  .wxalert .ev{font-weight:700;color:var(--stop)}
+  .wxalert .when{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+  .wxcard .wx-foot{padding:8px 12px;background:var(--shoal);border-top:1px solid var(--hair);
+    font-size:11px;color:var(--ink-soft);line-height:1.45}
   /* how-to legend */
   details.howto{border:1px solid var(--hair);border-radius:4px;background:var(--card);margin:0 0 14px}
   details.howto summary{
@@ -287,6 +306,13 @@
             current is running and which way the sea is going, and marks the stretches where the two are
             <b>not fighting each other</b>. A <b>flooding</b> tide with the same sea is usually flat, which is
             why the good windows so often sit on the incoming water.</dd>
+        <dt>Weather</dt>
+        <dd>Day's high, night's low, rain chance and sky for <b>Daytona Beach, Port Orange, Ponce Inlet
+            and New Smyrna Beach</b>, from the National Weather Service, for whichever day is selected.
+            Any watch or warning in force for coastal Volusia or the waters out to 20 nm &mdash; a small
+            craft advisory, a thunderstorm warning &mdash; shows in red at the top of the card.
+            <b>No red block does not mean all clear</b>: if the alert feed cannot be reached, the card
+            simply has nothing to show.</dd>
         <dt>Feeding times (tan card)</dt>
         <dd><b>Majors</b> are ~2-hour windows when the moon is directly overhead or underfoot; <b>minors</b> are
             ~1-hour windows around moonrise and moonset. Solunar theory says fish feed most actively in these
@@ -417,7 +443,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 8;
+const BUILD_NUM = 9;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -1151,6 +1177,73 @@ async function fetchWx(){
   };
 }
 
+/* ---------------------------------------------------------------------
+   TOWN WEATHER — Daytona Beach, Port Orange, New Smyrna Beach
+
+   Jan's three towns. The source is each town's LAND gridpoint, not the inlet
+   cell the run-window card uses, because api.weather.gov REFUSES /forecast for
+   a marine cell — MLB/42,94/forecast answers 404 MarineForecastNotSupported.
+   The marine grid can give raw numbers (that is where wind and waves come
+   from) but never a sky, a high/low or a rain chance. Only a land cell can.
+
+   Each grid was resolved once from /points and hard-coded; a cell does not
+   move, and looking four of them up on every load would quadruple the requests
+   to say the same thing. Resolved 2026-08-05 from the TOWN CENTRES — take the
+   coordinates off the waterway instead and /points hands back the marine zone
+   again, which is how this started. Same host as the wind, so no relay.
+
+   Ponce Inlet is the one to be careful with: the peninsula is narrower than a
+   zone boundary, so /points calls the TOWN marine (AMZ550) — and yet its grid
+   cell serves a full land forecast. The zone in the /points reply is therefore
+   NOT the test of whether a forecast exists. Ask the cell: MLB/41,94/forecast
+   answers 200 with a sky and a high, so it stays. Re-check by fetching, never
+   by reading the zone.
+
+   Alerts come by zone, not by point: FLZ141 is coastal Volusia, AMZ550 the
+   0-20 nm waters off it. The marine zone is the one that carries a small craft
+   advisory, which is the alert that actually bears on running the inlet. */
+const WX_TOWNS = [                       // north to south, the way the river runs
+  { name:"Daytona Beach",    grid:"MLB/37,99" },
+  { name:"Port Orange",      grid:"MLB/38,96" },
+  { name:"Ponce Inlet",      grid:"MLB/41,94" },
+  { name:"New Smyrna Beach", grid:"MLB/41,91" }
+];
+const WX_ZONES = "FLZ141,AMZ550";
+let towns = null, townsErr = null, alerts = null;
+
+async function fetchTowns(){
+  const settled = await Promise.allSettled(WX_TOWNS.map(async t => {
+    const r = await fetchT("https://api.weather.gov/gridpoints/" + t.grid + "/forecast", 9000);
+    if(!r.ok) throw new Error("NWS " + r.status);
+    const ps = ((await r.json()).properties || {}).periods || [];
+    return { name: t.name, periods: ps.map(p => ({
+      start: new Date(p.startTime),
+      isDay: !!p.isDaytime,
+      temp:  p.temperature,
+      pop:   (p.probabilityOfPrecipitation || {}).value,
+      short: p.shortForecast || ""
+    })) };
+  }));
+  const ok = settled.filter(s => s.status === 'fulfilled').map(s => s.value);
+  if(!ok.length) throw new Error((settled[0].reason && settled[0].reason.message) || 'unreachable');
+  return ok;                       // one town down should not blank the other two
+}
+
+async function fetchAlerts(){
+  const r = await fetchT("https://api.weather.gov/alerts/active?zone=" + WX_ZONES, 9000);
+  if(!r.ok) throw new Error("NWS alerts " + r.status);
+  return ((await r.json()).features || []).map(f => {
+    const p = f.properties || {};
+    return {
+      event: p.event || "Weather alert",
+      headline: p.headline || "",
+      area: p.areaDesc || "",
+      from: p.onset ? new Date(p.onset) : (p.effective ? new Date(p.effective) : null),
+      to:   p.ends  ? new Date(p.ends)  : (p.expires   ? new Date(p.expires)   : null)
+    };
+  });
+}
+
 /* NDBC serves no CORS header, so the reading comes in through a relay — the
    same chain WTF uses, REORDERED on measurement (2026-08-05, this repo's
    origin): allorigins answered with the full file, corsproxy.io returned 403,
@@ -1631,6 +1724,69 @@ function feedingCardHTML(ds, de){
 }
 
 /* ---------------------------------------------------------------------
+   THE TOWN WEATHER CARD
+   --------------------------------------------------------------------- */
+function alertBlocksHTML(ds, de){
+  if(!alerts || !alerts.length) return "";
+  // Only the alerts whose own window touches the day being looked at. One with no
+  // end time shows on TODAY alone: it is active now, and nothing in the feed says
+  // it still will be on Sunday — printing it on a day four out would invent that.
+  const now = new Date();
+  const live = alerts.filter(a =>
+    (a.to ? a.to >= ds : (now >= ds && now < de)) && (!a.from || a.from < de));
+  return live.map(a => {
+    const when = a.to
+      ? "in effect until " + (a.to - de >= 0 || a.to.toDateString() !== ds.toDateString()
+                              ? fmtD(a.to) + " " + fmtT(a.to) : fmtT(a.to))
+      : "in effect";
+    return `<div class="wxalert">
+      <span class="ev">${esc(a.event)}</span>${a.area ? " &middot; " + esc(a.area) : ""}
+      <span class="when">${esc(when)}</span>
+    </div>`;
+  }).join("");
+}
+function weatherCardHTML(ds, de){
+  const alertHTML = alertBlocksHTML(ds, de);
+  if(!towns && !townsErr && !alertHTML) return "";      // nothing landed yet
+
+  let rows = "";
+  if(towns){
+    for(const t of towns){
+      const day   = t.periods.find(p =>  p.isDay && p.start >= ds && p.start < de);
+      const night = t.periods.find(p => !p.isDay && p.start >= ds && p.start < de);
+      if(!day && !night){
+        rows += `<div class="wxrow"><div class="town">${esc(t.name)}</div>
+                 <div class="pop">past the 7-day forecast</div></div>`;
+        continue;
+      }
+      const temps = (day ? day.temp + "&deg;" : "")
+                  + (night ? `<span class="lo">${day ? " / " : "low "}${night.temp}&deg;</span>` : "");
+      const pop   = [day, night].map(p => p && p.pop).filter(v => v != null);
+      const sky   = (day ? day.short : night.short)
+                      .replace(/Thunderstorms?/gi, m => `<span class="storm">${m}</span>`);
+      rows += `<div class="wxrow">
+        <div class="town">${esc(t.name)}</div>
+        <div class="temps">${temps}</div>
+        ${pop.length ? `<div class="pop">${Math.max.apply(null, pop)}% rain</div>` : ""}
+        <div class="sky">${sky}</div>
+      </div>`;
+    }
+  }
+  return `<div class="wxcard">
+    ${alertHTML}
+    <div class="wx-head">
+      <div class="wx-title">Weather</div>
+      <div class="wx-sub">${activeDay === 0 ? 'today' : fmtD(ds)}</div>
+    </div>
+    ${rows}
+    ${townsErr ? `<div class="wx-foot">Forecast unavailable (${esc(townsErr)}).</div>`
+      : `<div class="wx-foot">National Weather Service, Melbourne. Temperatures are the day's high
+         and the night's low; the rain chance is the higher of the two. This is the weather over the
+         <b>towns</b> &mdash; the water is usually breezier and a few degrees cooler.</div>`}
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
    THE DEPTH STRIP
    --------------------------------------------------------------------- */
 function depthStripHTML(loc, evAll, ds, de){
@@ -1718,7 +1874,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 function render(){
   const [ds,de] = dayWindow(activeDay);
   const isToday = activeDay === 0;
-  let html = inletCardHTML(ds,de) + feedingCardHTML(ds,de);
+  let html = inletCardHTML(ds,de) + weatherCardHTML(ds,de) + feedingCardHTML(ds,de);
 
   const ordered = LOCATIONS.slice().sort((a,b) =>
     (offsets[a.key].hi + offsets[a.key].lo) - (offsets[b.key].hi + offsets[b.key].lo));
@@ -1945,6 +2101,15 @@ function loadWeather(){
     .then(o => { obsWind = o; obsErr = null; })
     .catch(e => { obsErr = e.message; })
     .then(render);
+  fetchTowns()
+    .then(t => { towns = t; townsErr = null; })
+    .catch(e => { townsErr = e.message; })
+    .then(render);
+  fetchAlerts()
+    .then(a => { alerts = a; })
+    .catch(e => { alerts = null; })   // no alert card is the right failure: never imply "all clear"
+    .then(render);
+  loadWeather.last = Date.now();
 }
 
 async function boot(isRetry){
@@ -2021,6 +2186,10 @@ function showUpdatePill(){
       if(!updateCheck.last || Date.now() - updateCheck.last > 600000){
         updateCheck.last = Date.now(); updateCheck();
       }
+      /* A warning fetched at breakfast is worthless at four o'clock. The board is
+         a web app that can sit open on a phone all day, so coming back to it
+         re-pulls the forecast, the buoy and the alerts if they have gone stale. */
+      if(preds.length && (!loadWeather.last || Date.now() - loadWeather.last > 900000)) loadWeather();
     }
   });
   document.getElementById('footNote').insertAdjacentHTML('beforeend',
