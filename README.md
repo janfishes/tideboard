@@ -132,6 +132,14 @@ from a `file://` double-click.
 
 ---
 
+## Handing it on
+
+See [HANDOFF.md](HANDOFF.md). Short version: deploy your own copy of the
+worker, change two lines, turn on Pages and Actions-write. No secrets, nothing
+to buy. The one quiet failure to watch for is `ALLOWED_ORIGINS` in the worker
+still pointing at the old GitHub Pages origin — the buoy stops feeding measured
+wave direction and the card keeps looking fine.
+
 ## Known gaps
 
 - **DJM shows no depth, and cannot.** Positions for Crook's Corner and DJM were
