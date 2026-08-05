@@ -1,0 +1,80 @@
+# Keeps the built-in NOAA tide table alive without anyone remembering to.
+#
+# The board embeds a year-plus of official high/low predictions so it works with
+# no signal. Left alone that table expires, and v1 of the board expired into an
+# error message telling the user to go ask an AI for a new one.
+#
+# This runs on the 1st of every month, asks the refresh script whether the table
+# is running short (under 300 days left), and only then regenerates and commits.
+# Most months it does nothing and costs a few seconds. The manual trigger
+# regenerates unconditionally, for testing.
+#
+# Same shape as WTF's regs-notify workflow: a cheap gate, then a commit, so the
+# repo history records only real changes.
+
+name: Refresh NOAA tide table
+
+on:
+  schedule:
+    - cron: '17 9 1 * *'      # 09:17 UTC on the 1st
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Regenerate even if the table still has runway'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is a refresh due?
+        id: due
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+            echo "needed=yes" >> "$GITHUB_OUTPUT"
+            echo "Forced by manual run."
+            exit 0
+          fi
+          if python3 tools/refresh_fallback.py --check; then
+            echo "needed=no" >> "$GITHUB_OUTPUT"
+          else
+            code=$?
+            if [ "$code" = "3" ]; then
+              echo "needed=yes" >> "$GITHUB_OUTPUT"
+            else
+              echo "check failed with $code"; exit "$code"
+            fi
+          fi
+
+      - name: Regenerate the table
+        if: steps.due.outputs.needed == 'yes'
+        run: python3 tools/refresh_fallback.py --months 14
+
+      - name: Bump the build number
+        if: steps.due.outputs.needed == 'yes'
+        run: |
+          # The update pill compares BUILD_NUM, so a data change has to move it
+          # or devices holding a cached copy never learn there is a new table.
+          n=$(grep -o 'const BUILD_NUM = [0-9]*' index.html | grep -o '[0-9]*')
+          next=$((n + 1))
+          sed -i "s/const BUILD_NUM = $n;/const BUILD_NUM = $next;/" index.html
+          sed -i "s/const BUILD_STAMP = \"[0-9-]*\";/const BUILD_STAMP = \"$(date -u +%Y-%m-%d)\";/" index.html
+          echo "build $n -> $next"
+
+      - name: Commit
+        if: steps.due.outputs.needed == 'yes'
+        run: |
+          if git diff --quiet; then
+            echo "Nothing changed."; exit 0
+          fi
+          git config user.name  "tide-board-bot"
+          git config user.email "actions@github.com"
+          git add index.html
+          git commit -m "tides: refresh the built-in NOAA table (automated)"
+          git push

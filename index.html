@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tide Board — Halifax River &amp; Ponce Inlet</title>
+<meta name="description" content="Tides, water depth, feeding times and inlet run windows for the Halifax River and Ponce de Leon Inlet, Volusia County, Florida.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E1F2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tide Board">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%230E1F2E%22/%3E%3Cpath d=%22M2 20 Q9 8 16 20 T30 20%22 fill=%22none%22 stroke=%22%23B87E00%22 stroke-width=%223%22/%3E%3C/svg%3E">
+<!-- Web fonts are a PROGRESSIVE nicety, never a dependency: they load non-render-blocking
+     and the fallback stack below carries the design if the network is gone. Nothing the
+     app needs to COMPUTE comes from a CDN any more — see the SunCalc note in the script. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --paper:#FFFFFF;
+    --shoal:#EDF2F6;
+    --ink:#0E1F2E;
+    --ink-soft:#000000;
+    /* v2: the ebb amber was #FFC400, about 1.5:1 on white paper — under the 3:1 floor for
+       graphics and the first thing to disappear in sun glare on a phone. #B87E00 measures
+       3.5:1 and sits in the same family as the ebb TEXT colour below, so the card reads as
+       one colour instead of two. (Same class of fix as the WTF marina pins, different
+       background: dark-on-white here, not bright-on-photo.) */
+    --ebb:#8A6100;
+    --ebb-line:#B87E00;
+    --ebb-soft:#FFF3C4;
+    --flood:#5C6B78;
+    --danger:#B23A2B;
+    --hair:#C4CBD1;
+    --card:#FFFFFF;
+    --feed:#8A5A1F;
+    --feed-soft:#F2E7D3;
+    /* Inlet run ratings. The WORD always carries the meaning — colour is only a second
+       channel, so the card still reads correctly in greyscale or with colour-blindness. */
+    --go:#1B6F3B;      --go-soft:#E3F3E8;
+    --caution:#B87E00; --caution-soft:#FDF3D9;
+    --rough:#B4530C;   --rough-soft:#FBEADF;
+    --stop:#B23A2B;    --stop-soft:#F7E5E1;
+    --depth:#0A5A78;   --depth-soft:#E4F2F8;
+    --sans:'IBM Plex Sans Condensed','Avenir Next Condensed','Helvetica Neue',Arial,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-text-size-adjust:100%;
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(21,42,59,.035) 39px,rgba(21,42,59,.035) 40px);
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
+  header{border-bottom:3px double var(--ink);padding-bottom:10px;margin-bottom:6px}
+  .chart-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-soft);text-transform:uppercase}
+  h1{font-size:26px;font-weight:700;letter-spacing:.01em;line-height:1.1;margin-top:2px}
+  h1 .thin{font-weight:500;color:var(--ink-soft)}
+  .station-line{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:4px}
+  .daynav{display:flex;flex-wrap:wrap;gap:4px;padding:12px 0}
+  .daybtn{
+    font-family:var(--mono);font-size:10px;
+    border:1px solid var(--ink);background:transparent;color:var(--ink);
+    padding:5px 7px;cursor:pointer;white-space:nowrap;border-radius:2px;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .daybtn.active{background:var(--ink);color:var(--paper)}
+  .daybtn .dot{width:7px;height:7px;border-radius:50%;background:var(--hair);flex:none}
+  .card{
+    background:var(--card);border:1px solid var(--hair);border-radius:4px;
+    margin-bottom:12px;overflow:hidden;
+  }
+  .card.ebbing{border-color:var(--ebb-line);box-shadow:0 0 0 2px var(--ebb-line)}
+  .card-head{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px 2px;gap:8px}
+  .loc-name{font-weight:700;font-size:17px}
+  .loc-name .charted{display:block;font-family:var(--mono);font-size:10px;font-weight:400;color:var(--ink-soft);letter-spacing:.04em;text-transform:uppercase}
+  .state{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+  .state.ebb{color:var(--ebb)}
+  .state.flood{color:var(--flood)}
+  .offset-chip{
+    font-family:var(--mono);font-size:10px;color:var(--ink-soft);
+    padding:0 12px 6px;cursor:pointer;text-decoration:underline dotted;
+    background:none;border:0;text-align:left;display:block;width:100%;
+  }
+  .curve{display:block;width:100%;max-width:100%;height:64px;min-height:64px}
+  .events{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--hair)}
+  .ev{
+    flex:1 1 25%;min-width:120px;padding:8px 12px;border-right:1px solid var(--hair);
+    font-family:var(--mono);
+  }
+  .ev:last-child{border-right:none}
+  .ev .lbl{font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase}
+  .ev .t{font-size:16px;font-weight:700}
+  .ev .h{font-size:11px;color:var(--ink-soft)}
+  .ebb-strip{
+    background:var(--ebb-soft);border-top:2px solid var(--ebb-line);
+    padding:7px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500;
+  }
+  .ebb-strip b{font-weight:700}
+  /* depth-now strip */
+  .depth-strip{
+    background:var(--depth-soft);border-top:1px solid var(--depth);
+    padding:7px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);
+    display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;
+  }
+  .depth-strip b{font-weight:700;color:var(--depth)}
+  .depth-strip .sub{font-size:10px;color:var(--ink-soft)}
+  .depth-strip .setpos{
+    font-family:var(--mono);font-size:11px;background:none;border:0;padding:0;
+    color:var(--depth);text-decoration:underline;cursor:pointer;
+  }
+  .note{font-size:12px;color:var(--ink-soft);padding:14px 2px;line-height:1.5}
+  .note b{color:var(--ink)}
+  /* ---- inlet run windows ---- */
+  .inlet{border:2px solid var(--ink);border-radius:4px;margin-bottom:14px;overflow:hidden;background:var(--card)}
+  .inlet-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 12px;border-bottom:3px double var(--ink)}
+  .inlet-title{font-weight:700;font-size:16px;letter-spacing:.01em}
+  .inlet-sub{font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em}
+  .win{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-bottom:1px solid var(--hair)}
+  .win:last-of-type{border-bottom:0}
+  .win .rate{
+    font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.09em;
+    padding:3px 6px;border-radius:2px;white-space:nowrap;flex:none;min-width:80px;text-align:center;
+  }
+  .win.go    .rate{background:var(--go-soft);color:var(--go);border:1px solid var(--go)}
+  .win.caution .rate{background:var(--caution-soft);color:var(--caution);border:1px solid var(--caution)}
+  .win.rough .rate{background:var(--rough-soft);color:var(--rough);border:1px solid var(--rough)}
+  .win.stop  .rate{background:var(--stop-soft);color:var(--stop);border:1px solid var(--stop)}
+  .win.past  .rate{background:#F3F5F7;color:#6B7780;border:1px solid var(--hair)}
+  .win.unknown .rate{background:#F3F5F7;color:#6B7780;border:1px dashed var(--hair)}
+  .win.past{opacity:.55}
+  .win .when{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap}
+  .win .why{font-size:12px;color:var(--ink-soft);line-height:1.4;margin-top:1px}
+  .win .why em{font-style:normal;font-weight:700;color:var(--ink)}
+  .inlet-foot{padding:8px 12px;background:var(--shoal);border-top:1px solid var(--hair);font-size:11px;color:var(--ink-soft);line-height:1.45}
+  .conf{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em}
+  .conf.low{color:var(--rough)}
+  /* the day's condition ribbon */
+  .ribbon{display:flex;height:14px;margin:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+  .ribbon i{flex:1 1 0;display:block}
+  .ribbon-ax{display:flex;font-family:var(--mono);font-size:9px;color:var(--ink-soft);padding:2px 12px 6px;justify-content:space-between}
+  /* feeding times */
+  .feedcard{background:var(--feed-soft);border:1px solid var(--feed);border-radius:4px;margin-bottom:14px;overflow:hidden}
+  .feedcard .fc-head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--feed);gap:8px}
+  .feedcard .fc-title{font-weight:700;font-size:15px;color:var(--feed)}
+  .feedcard .fc-moon{font-family:var(--mono);font-size:11px;color:var(--feed);text-align:right}
+  .feedrows{display:flex;flex-wrap:wrap}
+  .feed-ev{flex:1 1 25%;min-width:130px;padding:8px 12px;border-right:1px solid rgba(138,90,31,.3);font-family:var(--mono)}
+  .feed-ev:last-child{border-right:none}
+  .feed-ev .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--feed);font-weight:700}
+  .feed-ev .t{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
+  .feed-ev .sub{font-size:10px;color:var(--ink-soft)}
+  /* how-to legend */
+  details.howto{border:1px solid var(--hair);border-radius:4px;background:var(--card);margin:0 0 14px}
+  details.howto summary{
+    cursor:pointer;padding:9px 12px;font-family:var(--mono);font-size:12px;
+    font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    list-style:none;
+  }
+  details.howto summary::-webkit-details-marker{display:none}
+  details.howto summary::before{content:"\25b8  "}
+  details.howto[open] summary::before{content:"\25be  "}
+  details.howto .howto-body{padding:0 12px 12px;font-size:13px;line-height:1.55}
+  details.howto .howto-body dt{font-weight:700;margin-top:9px}
+  details.howto .howto-body dd{color:var(--ink-soft);margin-left:0}
+  details.howto .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .warn{
+    border:2px solid var(--danger);border-radius:4px;background:var(--stop-soft);
+    padding:11px 12px;margin:0 0 14px;font-size:12.5px;line-height:1.5;color:var(--ink);
+  }
+  .warn b{color:var(--danger)}
+  .warn .hdr{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);display:block;margin-bottom:4px}
+  .err{
+    background:var(--stop-soft);border:1px solid var(--danger);color:var(--danger);
+    font-family:var(--mono);font-size:12px;padding:12px;border-radius:3px;margin:12px 0;
+  }
+  .loading{font-family:var(--mono);font-size:13px;color:var(--ink-soft);padding:30px 0;text-align:center}
+  .addbtn{
+    font-family:var(--mono);font-size:11px;border:1px dashed var(--ink);background:transparent;
+    color:var(--ink);padding:9px 12px;cursor:pointer;border-radius:3px;width:100%;margin-bottom:14px;
+  }
+  /* dialogs */
+  dialog{
+    border:2px solid var(--ink);border-radius:4px;background:var(--card);color:var(--ink);
+    max-width:460px;width:92vw;padding:0;
+  }
+  dialog::backdrop{background:rgba(21,42,59,.45)}
+  .dlg-head{padding:12px 14px;border-bottom:3px double var(--ink);font-weight:700;font-size:16px}
+  .dlg-body{padding:12px 14px;font-size:13px;max-height:60vh;overflow:auto}
+  .dlg-body p{color:var(--ink-soft);font-size:12px;line-height:1.5;margin-bottom:10px}
+  .off-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-family:var(--mono);font-size:12px}
+  .off-row label{flex:1}
+  .off-row input{
+    width:74px;font-family:var(--mono);font-size:13px;padding:4px 6px;
+    border:1px solid var(--ink);border-radius:2px;background:var(--paper);color:var(--ink);text-align:right;
+  }
+  .dlg-foot{padding:12px 14px;border-top:1px solid var(--hair);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .btn{
+    font-family:var(--mono);font-size:12px;padding:8px 14px;cursor:pointer;
+    border:1px solid var(--ink);border-radius:2px;background:transparent;color:var(--ink);
+  }
+  .btn.primary{background:var(--ink);color:var(--paper)}
+  .btn.danger{border-color:var(--danger);color:var(--danger)}
+  #spotSearch{
+    width:100%;font-family:var(--mono);font-size:13px;padding:8px;margin-bottom:10px;
+    border:1px solid var(--ink);border-radius:2px;background:var(--paper);color:var(--ink);
+  }
+  .spotlist{max-height:44vh;overflow:auto;border:1px solid var(--hair);border-radius:2px}
+  .spotrow{
+    display:flex;justify-content:space-between;gap:8px;align-items:baseline;width:100%;
+    padding:8px 10px;border:0;border-bottom:1px solid var(--hair);background:transparent;
+    font-family:var(--sans);font-size:13px;color:var(--ink);cursor:pointer;text-align:left;
+  }
+  .spotrow:last-child{border-bottom:0}
+  .spotrow:hover,.spotrow:focus{background:var(--shoal)}
+  .spotrow .k{font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;white-space:nowrap}
+  .updatepill{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));
+    background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;
+    padding:9px 14px;border-radius:20px;border:0;cursor:pointer;z-index:50;
+    box-shadow:0 3px 14px rgba(14,31,46,.35);
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .now-dot{animation:pulse 2.4s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="chart-no">Halifax River &middot; Volusia Co &middot; datum MLLW</div>
+    <h1>TIDE BOARD <span class="thin">&mdash; Ponce Inlet &amp; upriver</span></h1>
+    <div class="station-line" id="stationLine">NOAA station: connecting&hellip;</div>
+  </header>
+
+  <div class="daynav" id="daynav"></div>
+
+  <div class="warn">
+    <span class="hdr">Read this first</span>
+    The inlet ratings on this page are a <b>rough guide built from forecasts</b>, not an
+    observation of the bar and not a substitute for looking at it. Conditions at Ponce change
+    with the sandbar, with a squall, and with a swell the forecast never saw.
+    <b>Never run this inlet on this app alone.</b> Check the bar with your own eyes, carry the
+    Coast Guard on VHF 16, and turn around if it does not look right.
+  </div>
+
+  <details class="howto">
+    <summary>How to read this board</summary>
+    <div class="howto-body">
+      <dl>
+        <dt>Day buttons</dt>
+        <dd>Pick any day up to a week out. Everything below updates to that day. The dot on each
+            button is the <b>best inlet rating</b> that day, so you can see at a glance which day is worth going.</dd>
+        <dt>Inlet run windows</dt>
+        <dd>When the tide runs <b>out</b> through the inlet it pushes east, straight into any sea coming
+            from the east &mdash; and a wave meeting an opposing current gets <b>shorter, steeper and taller</b>.
+            That is what stands the bar up. This card walks the day hour by hour, works out how hard the
+            current is running and which way the sea is going, and marks the stretches where the two are
+            <b>not fighting each other</b>. A <b>flooding</b> tide with the same sea is usually flat, which is
+            why the good windows so often sit on the incoming water.</dd>
+        <dt>Feeding times (tan card)</dt>
+        <dd><b>Majors</b> are ~2-hour windows when the moon is directly overhead or underfoot; <b>minors</b> are
+            ~1-hour windows around moonrise and moonset. Solunar theory says fish feed most actively in these
+            windows &mdash; strongest near a new or full moon (shown at top right of the card).</dd>
+        <dt>Tide curve</dt>
+        <dd><span class="sw" style="background:var(--ebb-line)"></span>Bold amber = outgoing (ebb) water.
+            <span class="sw" style="background:var(--flood)"></span>Thin gray = incoming (flood). The vertical dashed
+            red line is a clock hand: it marks the current time on today's curve, so where it crosses the curve is
+            where the tide stands right now. It only appears on Today's view.</dd>
+        <dt>Water now (blue strip)</dt>
+        <dd>The depth of water at that spot <b>at this minute</b> &mdash; the surveyed bottom plus the tide
+            standing on it &mdash; and what it falls to at the next low. Read the caution under the board
+            before you trust a number: these are survey depths, not chart soundings.</dd>
+        <dt>&#9660; Ebbing / &#9650; Flooding</dt>
+        <dd>What the water is doing at that spot this minute, and when it turns next. An amber-bordered card
+            means that spot is ebbing right now.</dd>
+        <dt>High/Low table</dt>
+        <dd>That day's turn times and heights (feet above MLLW) at that spot. "No turns this day" means the
+            highs/lows fall just before midnight or just after &mdash; the neighboring days have them.</dd>
+        <dt>Lag line</dt>
+        <dd>Upriver spots run behind the inlet. Tap the lag line on any card to adjust its high/low delay after
+            you've compared a prediction to real water. Saved automatically.</dd>
+        <dt>Add a spot</dt>
+        <dd>The button under the cards opens the waypoint list from the WTF chart &mdash; every named creek,
+            bay, bridge and island from Tomoka Basin down to Mosquito Lagoon. Pick one and it gets a card with an
+            <b>estimated</b> lag worked out from how far it sits from the inlet. Calibrate it the same way as the rest.</dd>
+      </dl>
+    </div>
+  </details>
+
+  <div id="content"><div class="loading">Reading the tide from NOAA&hellip;</div></div>
+
+  <button class="addbtn" id="addSpotBtn">+ Add a spot from the WTF chart</button>
+
+  <div class="note" id="footNote">
+    <b>Times.</b> Upriver times are the inlet prediction shifted by a lag for each spot. The Dunlawton
+    Bridge lag is informed by measured tide-gauge phase data from the U.S. Army Corps of Engineers
+    Ponce de Leon Inlet site investigation (Technical Report CHL-99-1, 1995&ndash;97 field study). Other lags
+    marked <b>est.</b> are educated estimates &mdash; tap any lag to adjust it once you've compared a predicted
+    high or low against what you see on the water. Your adjustments are saved on this device.
+    Predictions are astronomical; strong wind or heavy rain runoff will move the real water.
+    Heights are in feet above <b>MLLW</b> (Mean Lower Low Water) &mdash; the long-term average of each day's lower
+    low tide, the zero mark used on U.S. charts. A negative height means water below even that average low.
+    <br><br>
+    <b>Depths.</b> The "water now" figures come from NOAA <b>BlueTopo</b> and <b>NCEI CUDEM</b> survey grids,
+    contoured to the foot, plus the tide standing on them. They are measured to <b>NAVD88</b>, which at Ponce
+    sits <b>2.25 ft above MLLW</b> (NOAA station 8721138 datums), and that offset is applied here. They are
+    <b>not chart soundings</b>, the surveys are years old in places, and this coast shoals and moves. Use them to
+    find an edge or a hole worth fishing. <b>Read your depth sounder for the water under your boat.</b>
+    <br><br>
+    <b>Wind and sea.</b> Wind and wave forecasts are the National Weather Service gridded forecast for the inlet
+    (Melbourne office). Present sea state and swell direction are the live reading from <b>NDBC buoy 41070</b>,
+    13.8 nm off the inlet. The NWS grid does not publish a wave <i>direction</i> forecast for this point, so
+    beyond the buoy's current reading the board assumes the sea follows the forecast wind &mdash; good for a
+    local summer chop, poor for a distant ground swell. Every window says which of the two it was built on.
+    <br><br>
+    Developed by Jan G. Neal, 2026. Tide, depth, wind and buoy data courtesy NOAA &mdash; NOS/CO-OPS,
+    NCEI, the National Weather Service and the National Data Buoy Center.
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg-head" id="dlgTitle">Adjust lag</div>
+  <div class="dlg-body">
+    <p>Minutes after the inlet tide. Highs and lows travel upriver at different speeds, so each gets its own lag.
+       Watch one real high or low at this spot, compare to the inlet time, and set the difference here.</p>
+    <div class="off-row"><label for="inHigh">High tide lag (min)</label><input type="number" id="inHigh" step="5"></div>
+    <div class="off-row"><label for="inLow">Low tide lag (min)</label><input type="number" id="inLow" step="5"></div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn danger" id="btnRemove">Remove spot</button>
+    <button class="btn" id="btnCancel">Cancel</button>
+    <button class="btn primary" id="btnSave">Save lag</button>
+  </div>
+</dialog>
+
+<dialog id="spotDlg">
+  <div class="dlg-head" id="spotDlgTitle">Add a spot</div>
+  <div class="dlg-body">
+    <p id="spotDlgNote">Every named waypoint on the WTF chart, from Tomoka Basin down to Mosquito Lagoon.
+       Picking one gives it a card with an estimated lag &mdash; calibrate it once you've watched a real turn.</p>
+    <input type="search" id="spotSearch" placeholder="Search&hellip;" autocomplete="off">
+    <div class="spotlist" id="spotList"></div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" id="spotCancel">Cancel</button>
+  </div>
+</dialog>
+
+<dialog id="ebbDlg">
+  <div class="dlg-head">Peak current at the inlet</div>
+  <div class="dlg-body">
+    <p>NOAA publishes no current prediction for Ponce, so the board works the current out from how fast the
+       tide is rising or falling and scales it to this figure at the strongest part of the run. If the inlet
+       runs harder or softer than the ratings suggest, set what you actually see here. Typical spring ebb at
+       Ponce is 3&ndash;4 knots.</p>
+    <div class="off-row"><label for="inPeakEbb">Peak ebb (knots)</label><input type="number" id="inPeakEbb" step="0.1" min="0.5" max="8"></div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" id="ebbCancel">Cancel</button>
+    <button class="btn primary" id="ebbSave">Save</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+/* =====================================================================
+   TIDE BOARD — Halifax River & Ponce de Leon Inlet
+   Single file, no build step, no runtime dependency on any CDN.
+   ===================================================================== */
+
+const BUILD_NUM = 1;
+const BUILD_STAMP = "2026-08-05";
+
+/* ---------------------------------------------------------------------
+   ASTRONOMY — a trimmed SunCalc, inlined.
+
+   v1 loaded SunCalc from cdnjs. On the water with no signal that script
+   never arrives, SunCalc is undefined, feedingTimes() throws, and the
+   try/catch around it returns "" — so the whole feeding-times card
+   silently vanished in exactly the situation the app exists for, while
+   a year of NOAA tables sat embedded three hundred lines below for that
+   same reason. Only three entry points were ever used, so they live here
+   now and the CDN tag is gone.
+
+   Port of SunCalc 1.9.0 (c) 2014 Vladimir Agafonkin, BSD-2-Clause —
+   getMoonPosition / getMoonTimes / getMoonIllumination and the shared
+   astronomy they sit on, unchanged in substance.
+   --------------------------------------------------------------------- */
+const SunCalc = (function(){
+  const PI = Math.PI, sin = Math.sin, cos = Math.cos, tan = Math.tan,
+        asin = Math.asin, atan = Math.atan2, acos = Math.acos, rad = PI/180;
+  const dayMs = 86400000, J1970 = 2440588, J2000 = 2451545;
+  const e = rad * 23.4397;                       // obliquity of the Earth
+
+  const toJulian = d => d.valueOf()/dayMs - 0.5 + J1970;
+  const toDays   = d => toJulian(d) - J2000;
+  const rightAscension = (l,b) => atan(sin(l)*cos(e) - tan(b)*sin(e), cos(l));
+  const declination    = (l,b) => asin(sin(b)*cos(e) + cos(b)*sin(e)*sin(l));
+  const azimuth  = (H,phi,dec) => atan(sin(H), cos(H)*sin(phi) - tan(dec)*cos(phi));
+  const altitude = (H,phi,dec) => asin(sin(phi)*sin(dec) + cos(phi)*cos(dec)*cos(H));
+  const siderealTime = (d,lw) => rad * (280.16 + 360.9856235*d) - lw;
+  function astroRefraction(h){
+    if(h < 0) h = 0;
+    return 0.0002967 / Math.tan(h + 0.00312536/(h + 0.08901179));
+  }
+  const solarMeanAnomaly = d => rad * (357.5291 + 0.98560028*d);
+  function eclipticLongitude(M){
+    const C = rad * (1.9148*sin(M) + 0.02*sin(2*M) + 0.0003*sin(3*M));
+    return M + C + rad*102.9372 + PI;
+  }
+  function sunCoords(d){
+    const M = solarMeanAnomaly(d), L = eclipticLongitude(M);
+    return { dec: declination(L,0), ra: rightAscension(L,0) };
+  }
+  function moonCoords(d){
+    const L = rad * (218.316 + 13.176396*d),     // ecliptic longitude
+          M = rad * (134.963 + 13.064993*d),     // mean anomaly
+          F = rad * (93.272  + 13.229350*d),     // mean distance from ascending node
+          l = L + rad*6.289*sin(M),
+          b = rad*5.128*sin(F),
+          dt = 385001 - 20905*cos(M);            // distance, km
+    return { ra: rightAscension(l,b), dec: declination(l,b), dist: dt };
+  }
+  function getMoonPosition(date, lat, lng){
+    const lw = rad * -lng, phi = rad * lat, d = toDays(date),
+          c = moonCoords(d), H = siderealTime(d,lw) - c.ra;
+    let h = altitude(H, phi, c.dec);
+    h = h + astroRefraction(h);
+    return { azimuth: azimuth(H,phi,c.dec), altitude: h, distance: c.dist };
+  }
+  function getMoonIllumination(date){
+    const d = toDays(date || new Date()), s = sunCoords(d), m = moonCoords(d),
+          sdist = 149598000,
+          phi = acos(sin(s.dec)*sin(m.dec) + cos(s.dec)*cos(m.dec)*cos(s.ra - m.ra)),
+          inc = atan(sdist*sin(phi), m.dist - sdist*cos(phi)),
+          angle = atan(cos(s.dec)*sin(s.ra - m.ra),
+                       sin(s.dec)*cos(m.dec) - cos(s.dec)*sin(m.dec)*cos(s.ra - m.ra));
+    return { fraction:(1 + cos(inc))/2, phase:0.5 + 0.5*inc*(angle < 0 ? -1 : 1)/PI, angle:angle };
+  }
+  const hoursLater = (d,h) => new Date(d.valueOf() + h*dayMs/24);
+  function getMoonTimes(date, lat, lng){
+    const t = new Date(date); t.setHours(0,0,0,0);
+    const hc = 0.133 * rad;
+    let h0 = getMoonPosition(t,lat,lng).altitude - hc,
+        h1, h2, rise, set, a, b, xe, ye, d, roots, x1, x2, dx;
+    for(let i = 1; i <= 24; i += 2){
+      h1 = getMoonPosition(hoursLater(t,i),   lat,lng).altitude - hc;
+      h2 = getMoonPosition(hoursLater(t,i+1), lat,lng).altitude - hc;
+      a = (h0 + h2)/2 - h1; b = (h2 - h0)/2;
+      xe = -b/(2*a); ye = (a*xe + b)*xe + h1;
+      d = b*b - 4*a*h1; roots = 0;
+      if(d >= 0){
+        dx = Math.sqrt(d)/(Math.abs(a)*2); x1 = xe - dx; x2 = xe + dx;
+        if(Math.abs(x1) <= 1) roots++;
+        if(Math.abs(x2) <= 1) roots++;
+        if(x1 < -1) x1 = x2;
+      }
+      if(roots === 1){ if(h0 < 0) rise = i + x1; else set = i + x1; }
+      else if(roots === 2){ rise = i + (ye < 0 ? x2 : x1); set = i + (ye < 0 ? x1 : x2); }
+      if(rise && set) break;
+      h0 = h2;
+    }
+    const res = {};
+    if(rise) res.rise = hoursLater(t, rise);
+    if(set)  res.set  = hoursLater(t, set);
+    return res;
+  }
+  return { getMoonPosition, getMoonTimes, getMoonIllumination };
+})();
+
+/* ---------------------------------------------------------------------
+   POSITIONS AND DATUMS
+   --------------------------------------------------------------------- */
+
+/* The inlet, at NOAA's official published position 29°04.672'N 80°54.511'W.
+   v1 used 29.0817/-80.9367 for the solunar maths. That is the COORDINATE OF
+   THE TIDE GAUGE (station 8721138), and a gauge coordinate is only ever good
+   for interpolating tides between gauges — never for a position, a distance
+   or a heading. WTF hunted that same number out of its own code and left a
+   comment at both of its tide tables saying so; the board follows the rule. */
+const INLET = { lat: 29.077867, lng: -80.908517 };
+
+/* NOAA station 8721138 published datums, on the station datum:
+     MLLW 2.94 ft, NAVD88 5.19 ft  ->  NAVD88 stands 2.25 ft ABOVE MLLW.
+   The depth grids are NAVD88 and the tide predictions are MLLW, so:
+     water depth = (surveyed depth below NAVD88) + (tide above MLLW) - 2.25 */
+const NAVD88_ABOVE_MLLW = 2.25;
+
+/* Which way the water goes through the inlet. The Ponce channel runs out
+   roughly east-southeast past the jetties; the ebb jet carries that heading
+   onto the bar, and the flood is its reciprocal. These are the vectors the
+   sea gets compared against — nothing else in the app depends on them. */
+const EBB_HEADING = 105, FLOOD_HEADING = 285;
+
+/* NOAA publishes no current prediction anywhere near Ponce (checked the
+   whole current-station list — nothing between Fernandina and Canaveral),
+   so speed is derived from the rate the tide is rising or falling and
+   scaled so the fastest part of the record equals this. A spring ebb at
+   Ponce is commonly 3-4 kt. Calibratable, like the lags. */
+const PEAK_EBB_KT_DEFAULT = 3.5;
+
+/* ---------------------------------------------------------------------
+   LOCATIONS
+   Jan's names stay the headline — this is his board. The charted / GNIS
+   name rides underneath, so a name here can be found on a chart and on
+   the topo imagery, which was the point of the rule in WTF.
+   --------------------------------------------------------------------- */
+const STATIONS = [
+  { id:"8721138", label:"Halifax River, Ponce Inlet" },
+  { id:"8721147", label:"Ponce De Leon Inlet South" }
+];
+const BUILTIN_LOCATIONS = [
+  { key:"inlet",     name:"Ponce Inlet (reference)", charted:"Ponce de Leon Inlet",
+    lat:29.077867, lng:-80.908517, hi:0,   lo:0,   fixed:true },
+  { key:"threebr",   name:"Three Bridges",           charted:"Halifax River at the three spans",
+    lat:29.086350, lng:-80.968633, hi:75,  lo:90,  est:true },
+  { key:"trestle",   name:"Train Trestle",           charted:"Strickland Bay train trestle",
+    lat:29.080083, lng:-80.983483, hi:105, lo:120, est:true },
+  /* Crook's Corner and DJM are Jan's own names and do not appear on any chart
+     or in GNIS, so there is nothing to look their position up in. They work
+     exactly as before for TIMES — the lag is all a time needs. They cannot
+     show a depth until they have a position: tap "set position" on the card
+     and pick the nearest waypoint, or the two of them can be given real
+     coordinates here. Everything else on the card is unaffected. */
+  { key:"turnbull",  name:"Crook's Corner",          charted:null,
+    lat:null, lng:null, hi:120, lo:140, est:true },
+  { key:"fairway",   name:"DJM",                     charted:null,
+    lat:null, lng:null, hi:135, lo:160, est:true },
+  { key:"dunlawton", name:"Dunlawton Bridge",        charted:"Halifax River, Dunlawton Bridge",
+    lat:29.148333, lng:-80.975317, hi:125, lo:150, est:true }
+];
+
+/* Every named inshore waypoint on the WTF chart between Tomoka Basin and
+   Mosquito Lagoon: [name, lat, lng, kind]. Extracted from WTF's SPOTS table,
+   which is itself named from the USGS GNIS gazetteer — the same gazetteer the
+   topo imagery labels itself from, so a name here matches the chart. */
+const WTF_SPOTS = [["Smith Creek",29.421817,-81.106433,"Creek"],["Bulow Creek",29.414013,-81.125044,"Creek"],["High Bridge",29.40855,-81.100983,"Bridge"],["Halifax Creek",29.384183,-81.089183,"Creek"],["Tiger Hammock",29.381089,-81.097558,"Island"],["Bryan Island",29.3697,-81.097002,"Island"],["Tomoka Basin",29.359567,-81.091883,"Basin"],["Tomoka River",29.338427,-81.087635,"River"],["Strickland Creek",29.317633,-81.079002,"Creek"],["Ormond Beach (City)",29.2955,-81.0555,"City"],["Granada Bridge",29.287317,-81.051383,"Bridge"],["Holly Hill (City)",29.245,-81.033,"City"],["Mason Ave Bridge N",29.231867,-81.021383,"Bridge"],["Mason Ave Bridge S",29.230517,-81.020733,"Bridge"],["Loggerhead Marina",29.225981,-81.022883,"Marina"],["Main St Bridge",29.223283,-81.016967,"Bridge"],["International Speedway Bridge",29.216217,-81.01555,"Bridge"],["Orange Ave Bridge",29.21145,-81.01035,"Bridge"],["Daytona Beach (City)",29.21,-81.009,"City"],["Halifax River Yacht Club",29.20745,-81.014564,"Yacht club marina"],["Halifax River N",29.1849,-80.998083,"River"],["South Daytona (City)",29.166,-80.991,"City"],["Pelican Island",29.156372,-80.982832,"Island"],["Seven Seas Marina",29.154869,-80.97494,"Marina"],["Daytona Beach Shores (City)",29.153,-80.9833,"City"],["Dunlawton Bridge",29.148333,-80.975317,"Bridge"],["Port Orange (City)",29.1406,-80.9779,"City"],["Adventure Yacht Harbor",29.132009,-80.961829,"Marina"],["Wilbur Bay",29.121892,-80.956986,"Bay"],["Fozzard Creek",29.121343,-80.969373,"Creek"],["Mill Creek NE",29.1136,-80.961083,"Creek"],["Mill Creek SW",29.11,-80.96615,"Creek"],["Tenmile Creek NE",29.1098,-80.95785,"Creek"],["Harbor Oaks (City)",29.1055,-80.9688,"City"],["Daggett Island",29.104984,-80.950054,"Island"],["Rose Bay NW",29.104867,-80.977433,"Bay"],["Dead End Creek",29.104428,-80.952832,"Creek"],["Rose Bay Bridge",29.103667,-80.97185,"Bridge"],["Harbour Village Marina",29.10175,-80.947098,"Marina"],["Tenmile Creek SW",29.100983,-80.959967,"Creek"],["Rose Bay",29.099722,-80.965697,"Bay"],["Live Oak Creek",29.096651,-80.946443,"Creek"],["Live Oak Point",29.093873,-80.946443,"Point"],["Lost Creek",29.09304,-80.954776,"Creek"],["Ponce Inlet (Town)",29.092,-80.948,"City"],["Inlet Harbor Marina",29.091649,-80.938758,"Marina"],["Spruce Creek NW",29.09145,-81.02005,"Creek"],["Halifax River",29.09,-80.9403,"River"],["Three Bridges NW",29.088617,-80.969867,"Bridge"],["Spruce Creek Mouth",29.08775,-80.950944,"Creek"],["Piddler Island",29.087207,-80.940054,"Island"],["Three Bridges S",29.08635,-80.968633,"Bridge"],["Blind Spruce Creek",29.086049,-80.944039,"Creek"],["Three Bridges SE",29.084033,-80.967117,"Bridge"],["Sea Love Marina",29.082341,-80.935118,"Marina"],["Murray Creek",29.081929,-80.956721,"Creek"],["Tata Island",29.081685,-80.939863,"Island"],["Strickland Bay",29.0812,-80.9798,"Bay"],["Strickland Bay Train Trestle",29.080083,-80.983483,"Train trestle"],["Lighthouse Boatyard",29.079152,-80.927267,"Marina & boatyard"],["Ponce de Leon Inlet",29.077867,-80.908517,"Inlet"],["Braddock Creek",29.077762,-80.932832,"Creek"],["Turnbull Bay N",29.07705,-80.9682,"Bay"],["New Smyrna Beach South Jetty",29.0736,-80.912075,"Jetty"],["Ramsey Pass",29.073018,-80.928475,"Pass"],["Spruce Creek SE",29.072383,-80.991917,"Creek"],["Redland Canal",29.071651,-80.945054,"Canal"],["Ponce de Leon Cut",29.069985,-80.939221,"Cut"],["Disappearing Island",29.069288,-80.927869,"Island"],["Bass Flats",29.064707,-80.924498,"Flats"],["Rockhouse Creek",29.064429,-80.927832,"Creek"],["Smyrna Creek",29.057763,-80.928109,"Creek"],["Hunter Creek",29.054985,-80.928665,"Creek"],["Turnbull Bay S",29.053333,-80.960867,"Bay"],["Turnbull Bay Bridge",29.051217,-80.9598,"Bridge"],["Indian River North",29.05,-80.9098,"River"],["Inlet Creek",29.04943,-80.92172,"Creek"],["Cook Creek",29.048041,-80.90922,"Creek"],["Turnbull Creek",29.04755,-80.9586,"Creek"],["NSB North Causeway Bridge",29.038667,-80.906017,"Bridge"],["Aqua Ct",29.032683,-80.947067,"Inshore spot"],["New Smyrna Marina",29.032108,-80.913696,"Marina"],["Chicken Island",29.029985,-80.912554,"Island"],["Sheephead Cut",29.029152,-80.910331,"Cut"],["Anglers Yacht Club",29.028403,-80.920854,"Yacht club marina"],["NSB South Causeway Bridge",29.023583,-80.917483,"Bridge"],["Callalisa Creek",29.01855,-80.90375,"Creek"],["Smyrna Yacht Club",29.012753,-80.914124,"Yacht club marina"],["Big Cove",29.012653,-80.899208,"Cove"],["New Smyrna Beach (City)",29.01,-80.91,"City"],["Big Snapper Cut",29.003875,-80.89672,"Cut"],["Browns Bay",29.00185,-80.891267,"Bay"],["Little Snapper Cut",29.001375,-80.895609,"Cut"],["Snake Creek",28.99859,-80.886897,"Creek"],["Pine Island Bay",28.991066,-80.8871,"Bay"],["Sand Point",28.988875,-80.896998,"Point"],["Potts Creek",28.987307,-80.888861,"Creek"],["Webster Creek",28.983947,-80.873853,"Creek"],["Elwinder Creek",28.975705,-80.885659,"Creek"],["Edgewater (City)",28.9747,-80.8883,"City"],["Botheration Creek",28.972075,-80.871758,"Creek"],["Bottle Island",28.970265,-80.869219,"Island"],["Three Sisters Islands",28.96582,-80.871164,"Islands"],["Bottle Island Creek",28.964318,-80.869356,"Creek"],["Fox Slip",28.957817,-80.86725,"Bay"],["Oyster Bay",28.957466,-80.861376,"Bay"],["Cedar Creek",28.955222,-80.854979,"Creek"],["Cedar Island",28.948321,-80.848664,"Island"],["Shipyard Canal",28.944987,-80.848386,"Canal"],["Turner Flats",28.943541,-80.840422,"Flats"],["Blue Hole",28.93615,-80.86655,"Hole"],["Shipyard Island",28.928599,-80.838386,"Island"],["Brickhouse Cove",28.923217,-80.860917,"Cove"],["Orange Island Creek",28.915393,-80.832488,"Creek"],["Bittersweet Cove",28.913701,-80.859628,"Cove"],["Orange Island",28.912488,-80.830608,"Island"],["Pumpkin Point",28.905266,-80.820052,"Point"],["Bissitte Bay",28.897717,-80.846133,"Bay"],["Slippery Creek",28.895071,-80.837035,"Creek"],["Gaines Island",28.890822,-80.826163,"Island"],["Gaines Slough",28.885847,-80.821168,"Slough"],["Oak Hill (City)",28.88,-80.835,"City"],["East Channel",28.874989,-80.799218,"Channel"],["Plantation Island",28.871933,-80.800885,"Island"],["Middle Island",28.859434,-80.79644,"Island"],["Georges Slough",28.844561,-80.772887,"Slough"],["Glory Hole",28.819832,-80.762364,"Hole"],["Bird Island",28.813601,-80.77394,"Island"],["Cat Hammock",28.81249,-80.751717,"Island"],["Tiger Shoal",28.812212,-80.785051,"Shoal"],["Vanns Slough",28.811676,-80.76266,"Slough"],["Vanns Island",28.810824,-80.764773,"Island"],["Mosquito Lagoon",28.804981,-80.768484,"Lagoon"],["Coot Creek",28.801935,-80.853387,"Creek"],["Turnbull Creek Mosquito Lagoon W",28.798324,-80.850331,"Creek"],["Preachers Island",28.798324,-80.758106,"Island"]];
+
+/* ---------------------------------------------------------------------
+   STATE
+   --------------------------------------------------------------------- */
+let LOCATIONS = [];
+let offsets   = {};          // key -> {hi,lo}
+let userPos   = {};          // key -> {lat,lng}   (positions set by hand)
+let addedSpots = [];         // [{key,name,charted,lat,lng,hi,lo}]
+let preds     = [];          // [{time:Date, ft:Number, type:'H'|'L'}]
+let activeDay = 0;
+let stationUsed = null;
+let peakEbbKt = PEAK_EBB_KT_DEFAULT;
+
+const LS = {
+  lags:'tide-lags', pos:'tide-positions', added:'tide-added-spots', ebb:'tide-peak-ebb'
+};
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+function loadPrefs(){
+  LOCATIONS = BUILTIN_LOCATIONS.slice();
+  try{
+    const a = JSON.parse(lsGet(LS.added) || "[]");
+    if(Array.isArray(a)) addedSpots = a;
+  }catch(e){ addedSpots = []; }
+  for(const s of addedSpots) LOCATIONS.push(Object.assign({ est:true, added:true }, s));
+
+  for(const loc of LOCATIONS) offsets[loc.key] = { hi:loc.hi, lo:loc.lo };
+  try{
+    const raw = lsGet(LS.lags);
+    if(raw) Object.assign(offsets, JSON.parse(raw));
+  }catch(e){}
+  try{
+    const raw = lsGet(LS.pos);
+    if(raw) userPos = JSON.parse(raw) || {};
+  }catch(e){ userPos = {}; }
+  const pe = parseFloat(lsGet(LS.ebb));
+  if(pe > 0.4 && pe < 9) peakEbbKt = pe;
+
+  // a hand-set position wins over the built-in one
+  for(const loc of LOCATIONS){
+    const p = userPos[loc.key];
+    if(p && isFinite(p.lat) && isFinite(p.lng)){ loc.lat = p.lat; loc.lng = p.lng; }
+  }
+}
+const saveOffsets = () => lsSet(LS.lags,  JSON.stringify(offsets));
+const savePos     = () => lsSet(LS.pos,   JSON.stringify(userPos));
+const saveAdded   = () => lsSet(LS.added, JSON.stringify(addedSpots));
+
+/* ---------------------------------------------------------------------
+   NOAA TIDE PREDICTIONS
+   --------------------------------------------------------------------- */
+function ymd(d){
+  return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0");
+}
+function parseNOAA(s){
+  // "2026-07-16 11:15" -> local Date, built from parts so no browser can
+  // second-guess the timezone
+  const [d,t] = s.split(" ");
+  const [Y,M,D] = d.split("-").map(Number);
+  const [h,m]   = t.split(":").map(Number);
+  return new Date(Y, M-1, D, h, m);
+}
+async function fetchPreds(){
+  const begin = new Date(); begin.setDate(begin.getDate()-1);
+  const end   = new Date(); end.setDate(end.getDate()+8);
+  let lastErr = null;
+  for(const st of STATIONS){
+    const url = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+      + "?product=predictions&application=halifax_tide_board"
+      + "&begin_date=" + ymd(begin) + "&end_date=" + ymd(end)
+      + "&datum=MLLW&station=" + st.id
+      + "&time_zone=lst_ldt&units=english&interval=hilo&format=json";
+    try{
+      const res  = await fetch(url);
+      const data = await res.json();
+      if(data.predictions && data.predictions.length){
+        stationUsed = st;
+        return data.predictions.map(p => ({ time:parseNOAA(p.t), ft:parseFloat(p.v), type:p.type }));
+      }
+      lastErr = (data.error && data.error.message) || "No predictions returned";
+    }catch(e){ lastErr = e.message; }
+  }
+  throw new Error(lastErr || "Could not reach NOAA");
+}
+
+/* Official NOAA hi/lo predictions for station 8721138, embedded so the board
+   works with no signal. Regenerated yearly by tools/refresh_fallback.py, which
+   the GitHub Action in .github/workflows/refresh-tides.yml runs unattended —
+   v1 expired into an error telling the user to go ask Claude for a new one.
+   Format: minutes-since-FALLBACK_BASE , height*100 ft , 1=High/0=Low */
+const FALLBACK_BASE = new Date(2026, 7, 4, 0, 0);
+const FALLBACK_END  = new Date(2027, 9, 4, 0, 0);
+const FALLBACK_DATA = "54,279,1;435,2,0;815,283,1;1181,38,0;1539,273,1;1928,2,0;2310,279,1;2679,48,0;3030,268,1;3429,2,0;3813,277,1;4184,55,0;4532,265,1;4935,-1,0;5322,280,1;5693,55,0;6043,269,1;6443,-6,0;6831,289,1;7199,48,0;7554,281,1;7947,-15,0;8335,305,1;8701,35,0;9061,298,1;9447,-24,0;9832,322,1;10199,19,0;10561,316,1;10943,-30,0;11323,336,1;11692,4,0;12057,332,1;12435,-31,0;12811,345,1;13183,-8,0;13548,341,1;13925,-26,0;14296,347,1;14671,-14,0;15037,342,1;15413,-15,0;15779,341,1;16158,-15,0;16524,337,1;16900,1,0;17261,328,1;17644,-8,0;18010,325,1;18387,20,0;18742,312,1;19130,3,0;19496,308,1;19874,40,0;20224,293,1;20617,17,0;20983,290,1;21364,59,0;21707,275,1;22108,32,0;22473,273,1;22857,76,0;23194,260,1;23603,44,0;23968,260,1;24355,86,0;24688,250,1;25101,51,0;25468,254,1;25855,91,0;26187,246,1;26600,53,0;26970,256,1;27353,90,0;27689,250,1;28094,49,0;28466,266,1;28845,82,0;29187,260,1;29582,43,0;29955,281,1;30331,72,0;30679,274,1;31066,35,0;31438,296,1;31813,59,0;32166,290,1;32547,28,0;32918,310,1;33291,46,0;33649,305,1;34025,24,0;34396,320,1;34767,33,0;35131,318,1;35503,22,0;35873,325,1;36243,22,0;36613,328,1;36981,23,0;37350,326,1;37720,14,0;38095,333,1;38461,28,0;38827,324,1;39199,9,0;39578,334,1;39943,37,0;40306,318,1;40682,8,0;41065,329,1;41429,49,0;41789,310,1;42171,12,0;42556,321,1;42921,62,0;43278,302,1;43667,19,0;44054,311,1;44422,74,0;44776,295,1;45172,26,0;45560,304,1;45931,81,0;46284,292,1;46684,30,0;47071,305,1;47443,79,0;47798,297,1;48194,27,0;48579,315,1;48951,68,0;49310,312,1;49699,20,0;50080,330,1;50451,51,0;50814,331,1;51197,13,0;51574,346,1;51945,33,0;52311,350,1;52690,9,0;53062,358,1;53434,17,0;53803,364,1;54178,9,0;54546,364,1;54920,6,0;55290,372,1;55664,14,0;56028,363,1;56404,2,0;56774,371,1;57148,24,0;57508,355,1;57887,6,0;58257,364,1;58631,37,0;58987,343,1;59368,16,0;59739,350,1;60113,54,0;60465,327,1;60850,30,0;61220,332,1;61596,72,0;61944,310,1;62334,46,0;62704,313,1;63082,89,0;63426,294,1;63822,62,0;64191,295,1;64572,104,0;64912,281,1;65317,76,0;65684,282,1;66072,115,0;66406,271,1;66818,84,0;67184,276,1;67576,118,0;67909,268,1;68321,86,0;68687,279,1;69078,113,0;69415,273,1;69818,81,0;70184,290,1;70571,101,0;70915,286,1;71309,73,0;71674,305,1;72056,86,0;72409,305,1;72794,64,0;73158,321,1;73537,68,0;73897,325,1;74275,55,0;74639,334,1;75015,50,0;75381,345,1;75755,48,0;76119,345,1;76493,34,0;76865,361,1;77235,43,0;77598,351,1;77971,20,0;78348,373,1;78716,43,0;79078,353,1;79451,12,0;79832,377,1;80198,47,0;80559,351,1;80934,10,0;81318,374,1;81683,56,0;82043,346,1;82421,14,0;82807,364,1;83172,67,0;83531,337,1;83913,24,0;84302,351,1;84667,80,0;85026,327,1;85414,36,0;85802,338,1;86171,90,0;86530,319,1;86922,47,0;87308,330,1;87684,93,0;88041,316,1;88436,53,0;88817,329,1;89196,86,0;89555,322,1;89946,53,0;90322,337,1;90701,72,0;91064,336,1;91448,49,0;91819,347,1;92197,54,0;92564,354,1;92943,45,0;93310,357,1;93687,37,0;94057,370,1;94433,42,0;94796,364,1;95173,24,0;95545,380,1;95919,42,0;96278,365,1;96656,18,0;97029,384,1;97401,46,0;97758,362,1;98136,17,0;98510,380,1;98882,53,0;99236,354,1;99616,22,0;99989,371,1;100362,63,0;100713,343,1;101095,33,0;101468,357,1;101841,76,0;102191,330,1;102574,46,0;102948,340,1;103321,90,0;103669,316,1;104055,61,0;104429,323,1;104803,103,0;105150,302,1;105540,76,0;105914,308,1;106291,115,0;106636,289,1;107031,88,0;107405,296,1;107789,122,0;108131,280,1;108530,97,0;108901,291,1;109293,122,0;109633,277,1;110034,100,0;110399,292,1;110795,114,0;111138,283,1;111534,96,0;111895,299,1;112288,100,0;112639,297,1;113028,88,0;113386,310,1;113774,81,0;114134,317,1;114516,78,0;114874,323,1;115257,59,0;115625,340,1;116001,67,0;116358,335,1;116738,38,0;117112,361,1;117485,58,0;117841,346,1;118219,20,0;118598,378,1;118968,51,0;119325,354,1;119702,6,0;120084,388,1;120452,48,0;120809,358,1;121187,-2,0;121572,390,1;121938,49,0;122296,358,1;122674,-2,0;123061,385,1;123426,55,0;123785,353,1;124165,5,0;124553,374,1;124919,64,0;125279,345,1;125661,18,0;126049,360,1;126417,72,0;126778,334,1;127163,33,0;127548,346,1;127924,78,0;128224,325,1;128612,47,0;128991,337,1;129374,76,0;129733,322,1;130123,56,0;130495,332,1;130882,67,0;131244,325,1;131630,59,0;131996,332,1;132383,53,0;132749,335,1;133131,59,0;133492,335,1;133877,39,0;134248,346,1;134624,57,0;134982,338,1;135365,27,0;135739,356,1;136113,56,0;136468,338,1;136849,19,0;137225,362,1;137597,55,0;137950,337,1;138330,16,0;138707,362,1;139078,56,0;139430,333,1;139810,17,0;140186,357,1;140557,60,0;140908,327,1;141289,21,0;141664,349,1;142036,66,0;142385,319,1;142767,29,0;143142,338,1;143514,73,0;143862,310,1;144245,39,0;144621,325,1;144993,82,0;145341,299,1;145724,50,0;146101,312,1;146473,90,0;146823,287,1;147205,61,0;147584,301,1;147958,96,0;148308,277,1;148690,71,0;149069,291,1;149449,99,0;149799,269,1;150182,80,0;150558,285,1;150945,96,0;151297,267,1;151681,85,0;152049,282,1;152443,87,0;152798,271,1;153182,85,0;153541,284,1;153937,72,0;154299,284,1;154681,80,0;155034,289,1;155427,53,0;155797,302,1;156175,71,0;156526,297,1;156915,31,0;157291,322,1;157666,60,0;158017,308,1;158403,10,0;158784,342,1;159154,48,0;159507,320,1;159890,-9,0;160274,358,1;160643,39,0;160997,330,1;161379,-23,0;161765,368,1;162131,32,0;162488,338,1;162868,-30,0;163255,371,1;163621,29,0;163979,341,1;164360,-30,0;164747,368,1;165113,29,0;165473,339,1;165854,-22,0;166239,359,1;166608,32,0;166969,332,1;167350,-9,0;167733,347,1;168107,35,0;168469,322,1;168851,8,0;169229,333,1;169610,36,0;169971,312,1;170356,24,0;170726,320,1;171115,34,0;171476,304,1;171862,38,0;172224,308,1;172618,28,0;172982,301,1;173366,46,0;173721,299,1;174116,21,0;174486,303,1;174866,51,0;175218,293,1;175610,14,0;175984,307,1;176360,52,0;176710,289,1;177099,9,0;177476,310,1;177849,51,0;178198,288,1;178584,5,0;178963,312,1;179334,49,0;179683,286,1;180066,3,0;180445,312,1;180816,48,0;181164,285,1;181547,2,0;181925,310,1;182295,47,0;182644,284,1;183027,4,0;183404,306,1;183774,48,0;184123,280,1;184505,7,0;184881,301,1;185252,50,0;185601,275,1;185982,12,0;186359,295,1;186731,52,0;187081,268,1;187459,19,0;187837,288,1;188209,54,0;188561,261,1;188937,27,0;189316,280,1;189689,54,0;190045,254,1;190417,36,0;190795,272,1;191172,52,0;191531,249,1;191902,44,0;192277,264,1;192658,48,0;193022,247,1;193393,51,0;193761,258,1;194149,40,0;194517,249,1;194891,55,0;195249,254,1;195644,29,0;196017,257,1;196393,55,0;196742,254,1;197141,14,0;197519,269,1;197894,50,0;198240,258,1;198637,-4,0;199020,284,1;199392,41,0;199740,267,1;200133,-22,0;200519,301,1;200888,29,0;201239,280,1;201627,-39,0;202015,316,1;202381,17,0;202737,295,1;203121,-53,0;203509,329,1;203874,6,0;204233,307,1;204615,-61,0;205001,337,1;205367,-4,0;205728,315,1;206108,-61,0;206492,339,1;206860,-11,0;207222,317,1;207602,-54,0;207982,334,1;208355,-14,0;208718,313,1;209097,-41,0;209472,324,1;209850,-15,0;210213,304,1;210593,-23,0;210963,309,1;211347,-14,0;211711,291,1;212092,-3,0;212454,291,1;212845,-11,0;213210,278,1;213592,15,0;213946,272,1;214344,-8,0;214711,266,1;215093,29,0;215441,256,1;215838,-7,0;216210,258,1;216589,38,0;216934,244,1;217334,-5,0;217710,253,1;218086,42,0;218431,237,1;218827,-4,0;219207,253,1;219579,42,0;219925,235,1;220317,-6,0;220697,255,1;221067,39,0;221415,237,1;221803,-9,0;222183,258,1;222552,34,0;222900,241,1;223286,-12,0;223664,263,1;224034,29,0;224382,245,1;224766,-15,0;225142,267,1;225513,24,0;225863,248,1;226244,-16,0;226619,270,1;226991,19,0;227342,249,1;227721,-14,0;228095,270,1;228467,15,0;228822,248,1;229196,-10,0;229571,267,1;229943,12,0;230301,246,1;230671,-4,0;231046,261,1;231418,8,0;231781,243,1;232148,4,0;232521,253,1;232895,5,0;233264,240,1;233629,12,0;233998,244,1;234376,1,0;234750,237,1;235115,21,0;235478,236,1;235864,-3,0;236242,235,1;236609,29,0;236964,229,1;237359,-8,0;237741,235,1;238112,34,0;238460,226,1;238862,-15,0;239247,240,1;239619,34,0;239965,228,1;240367,-26,0;240756,250,1;241125,26,0;241475,238,1;241871,-40,0;242260,266,1;242627,13,0;242982,254,1;243371,-56,0;243760,285,1;244125,-4,0;244484,274,1;244868,-69,0;245254,303,1;245620,-22,0;245982,292,1;246363,-77,0;246744,316,1;247113,-38,0;247477,306,1;247855,-78,0;248232,323,1;248604,-51,0;248969,312,1;249346,-72,0;249719,321,1;250095,-57,0;250460,309,1;250837,-58,0;251204,310,1;251585,-56,0;251951,299,1;252328,-40,0;252690,293,1;253075,-50,0;253442,282,1;253820,-18,0;254176,272,1;254567,-39,0;254934,262,1;255314,3,0;255663,249,1;256062,-25,0;256429,242,1;256811,21,0;257154,228,1;257559,-13,0;257929,225,1;258311,35,0;258650,212,1;259058,-4,0;259432,215,1;259811,41,0;260151,204,1;260556,-1,0;260934,214,1;261309,42,0;261652,203,1;262051,-3,0;262430,219,1;262802,37,0;263148,209,1;263540,-8,0;263918,229,1;264289,28,0;264637,219,1;265025,-14,0;265399,240,1;265772,18,0;266122,229,1;266506,-19,0;266877,251,1;267251,8,0;267603,239,1;267983,-23,0;268353,259,1;268727,-2,0;269083,247,1;269459,-24,0;269828,263,1;270201,-10,0;270561,252,1;270933,-22,0;271303,263,1;271674,-16,0;272040,255,1;272408,-18,0;272777,258,1;273148,-22,0;273519,255,1;273884,-11,0;274251,252,1;274624,-25,0;275000,252,1;275363,-2,0;275727,243,1;276104,-26,0;276484,247,1;276848,9,0;277206,235,1;277592,-25,0;277975,240,1;278340,20,0;278693,227,1;279089,-23,0;279475,233,1;279843,28,0;280192,222,1;280595,-22,0;280984,232,1;281354,31,0;281704,222,1;282106,-26,0;282496,239,1;282865,24,0;283220,232,1;283615,-36,0;284003,256,1;284371,8,0;284731,252,1;285118,-49,0;285503,276,1;285871,-12,0;286234,275,1;286616,-60,0;286995,295,1;287365,-34,0;287731,296,1;288109,-67,0;288484,310,1;288856,-52,0;289223,312,1;289599,-68,0;289969,316,1;290344,-65,0;290712,319,1;291088,-61,0;291453,314,1;291831,-69,0;292200,316,1;292575,-49,0;292936,304,1;293317,-64,0;293686,304,1;294061,-31,0;294418,287,1;294803,-52,0;295172,285,1;295548,-10,0;295901,266,1;296291,-36,0;296659,262,1;297037,11,0;297384,244,1;297781,-17,0;298149,238,1;298530,30,0;298872,223,1;299277,0,0;299644,219,1;300029,45,0;300366,207,1;300778,12,0;301147,206,1;301532,53,0;301868,199,1;302281,17,0;302652,205,1;303035,52,0;303375,199,1;303780,16,0;304152,212,1;304532,45,0;304877,208,1;305272,10,0;305643,225,1;306021,33,0;306370,222,1;306758,3,0;307125,240,1;307503,19,0;307856,238,1;308239,-4,0;308604,254,1;308981,5,0;309339,254,1;309716,-10,0;310081,264,1;310456,-8,0;310819,268,1;311193,-14,0;311557,271,1;311930,-19,0;312298,278,1;312668,-14,0;313032,273,1;313403,-28,0;313777,284,1;314144,-11,0;314508,270,1;314879,-33,0;315257,284,1;315622,-6,0;315984,266,1;316358,-34,0;316739,280,1;317103,3,0;317463,259,1;317841,-32,0;318225,271,1;318589,14,0;318946,251,1;319331,-26,0;319718,260,1;320143,26,0;320498,243,1;320891,-18,0;321279,250,1;321647,35,0;322002,237,1;322400,-12,0;322787,247,1;323160,36,0;323516,238,1;323913,-11,0;324298,252,1;324672,26,0;325032,249,1;325423,-17,0;325804,267,1;326177,8,0;326542,269,1;326925,-25,0;327301,284,1;327675,-13,0;328043,292,1;328421,-33,0;328793,300,1;329167,-34,0;329537,312,1;329913,-38,0;330280,311,1;330655,-50,0;331027,326,1;331401,-38,0;331764,315,1;332140,-58,0;332513,330,1;332886,-33,0;333246,312,1;333625,-58,0;333997,325,1;334371,-22,0;334727,302,1;335108,-50,0;335480,312,1;335854,-7,0;336207,286,1;336591,-36,0;336963,293,1;337337,10,0;337688,269,1;338076,-18,0;338446,271,1;338822,28,0;339169,250,1;339563,2,0;339932,249,1;340312,45,0;340654,233,1;341055,19,0;341423,231,1;341808,59,0;342146,219,1;342555,32,0;342920,219,1;343312,65,0;343647,210,1;344059,39,0;344422,217,1;344816,63,0;345154,211,1;345560,39,0;345922,223,1;346313,54,0;346658,220,1;347054,34,0;347415,234,1;347802,40,0;348155,237,1;348541,26,0;348901,248,1;349284,23,0;349644,256,1;350024,18,0;350383,261,1;350762,7,0;351128,275,1;351504,10,0;351863,272,1;352239,-9,0;352611,292,1;352983,5,0;353342,280,1;353716,-22,0;354092,305,1;354461,2,0;354821,284,1;355194,-31,0;355574,312,1;355941,2,0;356301,285,1;356674,-36,0;357058,312,1;357422,6,0;357782,283,1;358157,-36,0;358543,306,1;358907,13,0;359266,278,1;359645,-31,0;360033,296,1;360397,22,0;360756,271,1;361139,-21,0;361527,285,1;361894,31,0;362253,263,1;362641,-9,0;363027,275,1;363400,35,0;363759,258,1;364150,0,0;364532,270,1;364911,32,0;365271,260,1;365661,4,0;366037,272,1;366419,20,0;366783,270,1;367168,4,0;367539,280,1;367920,3,0;368289,287,1;368669,0,0;369035,290,1;369415,-15,0;369788,305,1;370163,-4,0;370526,298,1;370905,-30,0;371280,320,1;371653,-7,0;372013,304,1;372391,-40,0;372768,328,1;373139,-7,0;373497,305,1;373875,-43,0;374252,328,1;374623,-3,0;374979,300,1;375358,-40,0;375734,322,1;376106,5,0;376459,292,1;376840,-31,0;377215,309,1;377588,15,0;377939,281,1;378322,-18,0;378696,293,1;379069,28,0;379419,267,1;379804,-3,0;380177,276,1;380552,41,0;380900,253,1;381289,13,0;381660,259,1;382039,52,0;382384,240,1;382777,28,0;383146,246,1;383531,61,0;383873,228,1;384271,41,0;384636,236,1;385030,64,0;385370,222,1;385770,48,0;386130,232,1;386529,60,0;386872,222,1;387270,51,0;387625,234,1;388024,51,0;388375,231,1;388766,49,0;389119,239,1;389513,36,0;389873,246,1;390257,42,0;390609,248,1;390997,20,0;391366,265,1;391743,34,0;392097,259,1;392480,2,0;392854,285,1;393228,25,0;393582,269,1;393961,-15,0;394341,302,1;394711,17,0;395067,279,1;395443,-29,0;395827,316,1;396194,11,0;396552,287,1;396927,-39,0;397313,323,1;397679,8,0;398037,292,1;398413,-44,0;398801,324,1;399165,9,0;399525,293,1;399902,-43,0;400290,320,1;400655,12,0;401016,291,1;401394,-36,0;401781,312,1;402149,16,0;402510,286,1;402891,-24,0;403275,302,1;403648,18,0;404010,280,1;404393,-11,0;404772,293,1;405152,18,0;405514,275,1;405899,2,0;406271,285,1;406658,12,0;407021,275,1;407406,10,0;407771,281,1;408160,2,0;408528,280,1;408909,15,0;409269,279,1;409658,-9,0;410031,289,1;410408,16,0;410765,280,1;411151,-20,0;411529,299,1;411901,15,0;412257,282,1;412641,-27,0;413020,306,1;413391,14,0;413746,282,1;414127,-31,0;414507,309,1;414877,15,0;415231,281,1;415611,-31,0;415991,307,1;416360,16,0;416714,278,1;417094,-27,0;417473,302,1;417842,20,0;418194,273,1;418575,-20,0;418953,293,1;419324,26,0;419674,266,1;420056,-11,0;420432,283,1;420805,33,0;421154,258,1;421537,0,0;421912,273,1;422287,39,0;422635,248,1;423019,12,0;423392,262,1;423770,45,0;424118,239,1;424502,24,0;424873,253,1;425257,48,0;425605,231,1;425988,35,0;426356,245,1;426746,47,0;427096,227,1;427480,44,0;427842,240,1;428238,43,0;428592,227,1;428976,49,0;429331,237,1;429730,34,0;430090,234,1;430473,49,0;430822,237,1;431220,22,0;431589,245,1;431968,46,0;432315,240,1;432709,7,0;433086,261,1;433461,38,0;433809,248,1;434198,-10,0;434580,279,1;434951,29,0;435302,259,1;435687,-26,0;436073,296,1;436440,20,0;436794,271,1;437176,-41,0;437564,310,1;437929,11,0;438286,283,1;438666,-51,0;439055,320,1;439419,4,0;439778,292,1;440157,-56,0;440545,325,1;440910,-1,0;441271,298,1;441649,-55,0;442036,325,1;442403,-5,0;442766,300,1;443144,-47,0;443526,320,1;443898,-7,0;444262,297,1;444640,-34,0;445018,312,1;445396,-9,0;445760,291,1;446140,-18,0;446510,300,1;446896,-11,0;447260,285,1;447642,-2,0;448005,288,1;448397,-13,0;448763,279,1;449144,11,0;449500,276,1;449896,-16,0;450266,277,1;450646,20,0;450997,267,1;451392,-18,0;451768,277,1;452144,25,0;452494,260,1;452886,-20,0;453266,278,1;453638,28,0;453989,257,1;454376,-21,0;454759,280,1;455128,28,0;455480,256,1;455864,-21,0;456247,281,1;456614,27,0;456967,257,1;457349,-21,0;457731,281,1;458099,27,0;458450,257,1;458832,-19,0;459212,280,1;459581,27,0;459932,256,1;460314,-15,0;460691,278,1;461062,27,0;461412,254,1;461793,-10,0;462169,274,1;462542,28,0;462892,250,1;463272,-2,0;463646,270,1;464022,29,0;464373,246,1;464750,6,0;465123,264,1;465501,29,0;465854,241,1;466229,16,0;466600,258,1;466980,29,0;467338,237,1;467710,26,0;468078,250,1;468462,27,0;468824,235,1;469195,35,0;469558,243,1;469947,23,0;470313,235,1;470686,42,0;471042,238,1;471437,17,0;471808,238,1;472183,46,0;472531,235,1;472931,8,0;473307,245,1;473682,46,0;474026,236,1;474427,-3,0;474809,256,1;475181,41,0;475527,242,1;475924,-17,0;476310,270,1;476679,32,0;477028,254,1;477420,-32,0;477809,288,1;478174,21,0;478529,270,1;478915,-46,0;479304,304,1;479668,8,0;480027,286,1;480409,-57,0;480797,319,1;481161,-5,0;481523,301,1;481902,-62,0;482287,329,1;482654,-16,0;483018,311,1;483396,-60,0;483777,332,1;484148,-25,0;484513,316,1;484890,-50,0;485265,330,1;485642,-30,0;486007,314,1;486384,-36,0;486754,320,1;487136,-31,0;487503,306,1;487880,-17,0;488244,306,1;488632,-28,0;488999,295,1;489378,2,0;489735,289,1;490129,-23,0;490498,283,1;490878,19,0;491228,272,1;491627,-16,0;491998,272,1;492378,32,0;492724,257,1;493125,-10,0;493500,264,1;493877,40,0;494223,248,1;494620,-6,0;495001,261,1;495373,44,0;495721,244,1;496114,-4,0;496496,261,1;496865,44,0;497215,245,1;497603,-4,0;497986,265,1;498353,42,0;498704,248,1;499089,-5,0;499469,269,1;499838,38,0;500189,253,1;500572,-5,0;500949,274,1;501320,33,0;501671,258,1;502052,-4,0;502427,279,1;502799,29,0;503151,261,1;503530,-2,0;503903,281,1;504277,25,0;504630,262,1;505007,3,0;505378,280,1;505753,22,0;506110,262,1;506482,10,0;506852,277,1;507227,20,0;507589,261,1;507958,19,0;508327,270,1;508702,19,0;509069,259,1;509435,28,0;509802,263,1;510180,17,0;510552,257,1;510917,38,0;511279,256,1;511662,16,0;512039,254,1;512405,47,0;512761,250,1;513152,14,0;513532,254,1;513901,54,0;514250,246,1;514651,10,0;515034,256,1;515405,57,0;515750,247,1;516154,3,0;516540,263,1;516910,54,0;517257,254,1;517658,-8,0;518047,277,1;518414,44,0;518767,268,1;519160,-21,0;519548,296,1;519914,28,0;520272,288,1;520658,-34,0;521044,316,1;521410,10,0;521773,310,1;522154,-44,0;522536,334,1;522904,-8,0;523269,328,1;523647,-48,0;524025,346,1;524396,-23,0;524763,342,1;525139,-45,0;525513,351,1;525887,-33,0;526256,346,1;526631,-34,0;527000,347,1;527378,-36,0;527747,342,1;528123,-18,0;528486,336,1;528869,-31,0;529239,331,1;529615,2,0;529974,318,1;530362,-21,0;530732,314,1;531110,23,0;531463,298,1;531857,-7,0;532228,295,1;532607,42,0;532955,279,1;533355,8,0;533726,278,1;534108,58,0;534451,263,1;534855,19,0;535229,266,1;535609,67,0;535951,253,1;536355,26,0;536732,262,1;537108,70,0;537453,251,1;537851,28,0;538230,264,1;538602,68,0;538950,255,1;539342,26,0;539719,272,1;540091,62,0;540441,264,1;540828,23,0;541202,282,1;541574,54,0;541926,274,1;542310,21,0;542681,292,1;543054,45,0;543408,283,1;543788,19,0;544156,300,1;544531,37,0;544887,291,1;545264,20,0;545631,304,1;546006,31,0;546366,297,1;546739,24,0;547105,305,1;547479,26,0;547844,300,1;548213,29,0;548579,302,1;548952,24,0;549322,301,1;549688,37,0;550053,296,1;550426,23,0;550802,298,1;551165,46,0;551528,288,1;551903,23,0;552284,294,1;552646,56,0;553006,281,1;553387,25,0;553771,288,1;554134,66,0;554490,275,1;554880,28,0;555266,283,1;555632,75,0;555983,272,1;556383,29,0;556771,281,1;557139,79,0;557489,273,1;557892,27,0;558280,287,1;558651,74,0;559003,282,1;559401,18,0;559788,302,1;560157,61,0;560516,300,1;560906,6,0;561289,322,1;561658,40,0;562021,324,1;562404,-5,0;562783,343,1;563153,18,0;563520,348,1;563899,-14,0;564273,360,1;564645,-3,0;565014,368,1;565390,-16,0;565760,371,1;566135,-17,0;566506,380,1;566880,-12,0;567246,373,1;567623,-24,0;567995,382,1;568369,-1,0;568731,367,1;569111,-21,0;569484,374,1;569858,15,0;570216,354,1;570599,-11,0;570973,358,1;571347,34,0;571702,335,1;572089,6,0;572462,337,1;572839,56,0;573190,315,1;573583,26,0;573955,314,1;574334,75,0;574680,295,1;575081,44,0;575451,294,1;575835,90,0;576176,280,1;576583,58,0;576953,281,1;577338,98,0;577678,271,1;578086,65,0;578457,278,1;578840,99,0;579182,271,1;579584,66,0;579955,283,1;580335,93,0;580682,278,1;581076,63,0;581444,293,1;581823,83,0;582173,291,1;582561,58,0;582926,305,1;583305,70,0;583659,305,1;584042,53,0;584404,316,1;584783,58,0;585141,319,1;585520,50,0;585881,325,1;586258,48,0;586620,331,1;586995,48,0;587356,330,1;587731,40,0;588099,339,1;588470,49,0;588831,331,1;589204,34,0;589577,344,1;589945,53,0;590307,329,1;590678,31,0;591056,343,1;591421,59,0;591782,323,1;592154,31,0;592537,339,1;592899,68,0;593260,317,1;593635,34,0;594022,331,1;594382,78,0;594742,310,1;595122,39,0;595512,322,1;595873,88,0;596231,304,1;596619,46,0;597010,314,1;597375,96,0;597732,300,1;598126,52,0;598515,312,1;598886,96,0;599243,302,1;599639,52,0;600023,317,1;600398,87,0;600757,313,1;601149,46,0;601528,331,1;601904,68,0;602267,334,1;602652,37,0;603027,348,1;603402,45,0;603770,358,1;604149,27,0;604519,365,1;604895,22,0;605266,381,1;605642,21,0;606008,378,1;606384,4,0;606758,398,1;607131,19,0;607494,384,1;607871,-7,0;608246,405,1;608619,23,0;608979,383,1;609357,-8,0;609733,402,1;610105,32,0;610463,375,1;610843,-1,0;611219,390,1;611591,46,0;611947,361,1;612329,13,0;612705,371,1;613078,63,0;613431,343,1;613817,32,0;614192,348,1;614567,81,0";
+function loadFallbackPreds(){
+  return FALLBACK_DATA.split(";").map(function(s){
+    const a = s.split(",");
+    return { time: new Date(FALLBACK_BASE.getTime() + parseInt(a[0],10)*60000),
+             ft:   parseInt(a[1],10)/100,
+             type: a[2] === "1" ? "H" : "L" };
+  });
+}
+
+/* ---------------------------------------------------------------------
+   TIDE HELPERS
+   --------------------------------------------------------------------- */
+const fmtT = d => d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+const fmtC = d => d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}).replace(" ","").toLowerCase();
+const fmtD = d => d.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"});
+
+function shifted(locKey){
+  const o = offsets[locKey];
+  return preds.map(p => ({
+    time: new Date(p.time.getTime() + (p.type === "H" ? o.hi : o.lo)*60000),
+    ft: p.ft, type: p.type
+  })).sort((a,b) => a.time - b.time);
+}
+function dayWindow(offsetDays){
+  const s = new Date(); s.setHours(0,0,0,0); s.setDate(s.getDate() + offsetDays);
+  const e = new Date(s); e.setDate(e.getDate() + 1);
+  return [s,e];
+}
+function tideStateNow(events){
+  const now = new Date();
+  let prev = null, next = null;
+  for(const ev of events){
+    if(ev.time <= now) prev = ev; else { next = ev; break; }
+  }
+  if(!prev || !next) return null;
+  return { falling: prev.type === "H", prev, next };
+}
+
+/* Height and rate at an arbitrary instant, from the cosine interpolation
+   between the bracketing high and low — the classic tide shape, and the same
+   curve the SVG draws, so the numbers and the picture can never disagree.
+     h(t)  = a + (b-a) * (1 - cos(pi*f)) / 2
+     dh/dt = (b-a) * (pi/2) * sin(pi*f) / (tb - ta)
+   The derivative is what the inlet card turns into a current. */
+function tideAt(events, t){
+  for(let i = 0; i < events.length - 1; i++){
+    const a = events[i], b = events[i+1];
+    if(t >= a.time && t <= b.time){
+      const span = b.time - a.time;
+      if(span <= 0) return null;
+      const f = (t - a.time)/span;
+      const ft = a.ft + (b.ft - a.ft)*(1 - Math.cos(Math.PI*f))/2;
+      const dpm = (b.ft - a.ft)*(Math.PI/2)*Math.sin(Math.PI*f)/(span/60000); // ft per minute
+      return { ft, dpm, falling: b.type === "L" };
+    }
+  }
+  return null;
+}
+function maxRate(events){
+  let m = 0;
+  for(let i = 0; i < events.length - 1; i++){
+    const a = events[i], b = events[i+1], span = (b.time - a.time)/60000;
+    if(span <= 0) continue;
+    const peak = Math.abs(b.ft - a.ft)*(Math.PI/2)/span;
+    if(peak > m) m = peak;
+  }
+  return m || 1;
+}
+
+/* ---------------------------------------------------------------------
+   DEPTH — the surveyed bottom, from the same blocks WTF draws its contours
+   from. Blocks are [ft, tier, x0, y0, dx, dy, ...] in hundred-thousandths
+   of a degree from the block's SW corner.
+
+   WTF DRAWS these lines; the board has to READ A NUMBER off them at a point,
+   which is a different job. There is no gridded depth in the payload — only
+   the contours — so the depth at a point is interpolated between the two
+   nearest contour levels by distance. Between a 4 ft line 30 m away and a
+   6 ft line 90 m away, the point sits at 4 + 2*(30/120) = 4.5 ft. That is
+   exactly as good as the contour interval and no better, which is why the
+   card prints a "~" and a band rather than a decimal.
+   --------------------------------------------------------------------- */
+const DEPTH_DATA_V = 4;         // must match the v the blocks were built at
+const DEPTH_DIR = 'depth/';
+const DEPTH_BLOCKS = [
+  ['c3_4',-81.2,29,-81,29.25],     ['c3_5',-81.2,29.25,-81,29.48],
+  ['c4_2',-81,28.5,-80.75,28.75],  ['c4_3',-81,28.75,-80.75,29],
+  ['c4_4',-81,29,-80.75,29.25],    ['c4_5',-81,29.25,-80.75,29.48]
+];
+const depthBlocks = new Map();   // key -> {lines:[...]} | 'loading' | null
+const depthCache  = new Map();   // locKey -> {ft, lo, hi} | null
+
+/* Cache Storage, so a block fetched once is there with the signal off —
+   the same trick WTF uses for imagery, minus the map plumbing. */
+async function cacheFirst(url){
+  try{
+    const c = await caches.open('tideboard-data-v1');
+    const hit = await c.match(url);
+    if(hit) return hit;
+    const res = await fetch(url);
+    if(res && res.ok) c.put(url, res.clone());
+    return res;
+  }catch(e){
+    return fetch(url);
+  }
+}
+function depthDecode(raw){
+  const w = raw.b[0], s = raw.b[1], q = raw.q, out = [];
+  for(const L of raw.L){
+    const n = (L.length - 2) >> 1;
+    if(n < 2) continue;
+    const pts = new Float64Array(n*2);
+    let x = L[2], y = L[3], minx = x, maxx = x, miny = y, maxy = y;
+    pts[0] = w + x/q; pts[1] = s + y/q;
+    for(let i = 1; i < n; i++){
+      x += L[2 + i*2]; y += L[3 + i*2];
+      if(x < minx) minx = x; else if(x > maxx) maxx = x;
+      if(y < miny) miny = y; else if(y > maxy) maxy = y;
+      pts[i*2] = w + x/q; pts[i*2+1] = s + y/q;
+    }
+    out.push({ lv:L[0], pts:pts, bb:[w + minx/q, s + miny/q, w + maxx/q, s + maxy/q] });
+  }
+  return { lines: out };
+}
+function blockFor(lat,lng){
+  for(const [k,w,s,e,n] of DEPTH_BLOCKS){
+    if(lng >= w && lng <= e && lat >= s && lat <= n) return k;
+  }
+  return null;
+}
+function depthLoadBlock(key){
+  if(depthBlocks.has(key)) return Promise.resolve();
+  depthBlocks.set(key,'loading');
+  return cacheFirst(DEPTH_DIR + key + '.json?v=' + DEPTH_DATA_V)
+    .then(r => (r && r.ok) ? r.json() : null)
+    .then(j => { depthBlocks.set(key, j ? depthDecode(j) : null); })
+    .catch(() => { depthBlocks.set(key, null); });
+}
+// squared distance from p to segment ab, in metres-ish (degrees scaled by latitude)
+function segDist2(px,py,ax,ay,bx,by,kx){
+  const dx = (bx-ax)*kx, dy = by-ay;
+  const wx = (px-ax)*kx, wy = py-ay;
+  const len2 = dx*dx + dy*dy;
+  let t = len2 > 0 ? (wx*dx + wy*dy)/len2 : 0;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  const ex = wx - t*dx, ey = wy - t*dy;
+  return ex*ex + ey*ey;
+}
+const DEPTH_SEARCH_DEG = 0.012;   // ~1.3 km — past that there is nothing useful to say
+
+/* Nearest distance to every contour LEVEL near the point, then interpolate
+   between the two closest levels. Returns null rather than a guess when the
+   point has no contour near it (open flat, dry land, or off the blocks). */
+function depthAtPoint(lat,lng){
+  const key = blockFor(lat,lng);
+  if(!key) return null;
+  const blk = depthBlocks.get(key);
+  if(!blk || blk === 'loading') return null;
+  const kx = Math.cos(lat*Math.PI/180);
+  const R  = DEPTH_SEARCH_DEG;
+  const best = new Map();                       // level -> min distance (deg)
+  for(const ln of blk.lines){
+    const bb = ln.bb;
+    if(lng < bb[0]-R || lng > bb[2]+R || lat < bb[1]-R || lat > bb[3]+R) continue;
+    let d2 = Infinity;
+    const p = ln.pts, n = p.length/2;
+    for(let i = 0; i < n-1; i++){
+      const s = segDist2(lng,lat, p[i*2],p[i*2+1], p[i*2+2],p[i*2+3], kx);
+      if(s < d2) d2 = s;
+    }
+    const d = Math.sqrt(d2);
+    if(d > R) continue;
+    const cur = best.get(ln.lv);
+    if(cur === undefined || d < cur) best.set(ln.lv, d);
+  }
+  if(!best.size) return null;
+  const rank = [...best.entries()].sort((a,b) => a[1] - b[1]);
+  if(rank.length === 1) return { ft: rank[0][0], lo: rank[0][0], hi: rank[0][0], single:true };
+  const [lvA,dA] = rank[0], [lvB,dB] = rank[1];
+  const tot = dA + dB;
+  const ft = tot > 0 ? lvA + (lvB - lvA)*(dA/tot) : lvA;
+  return { ft, lo: Math.min(lvA,lvB), hi: Math.max(lvA,lvB), single:false };
+}
+function ensureDepth(loc){
+  if(!isFinite(loc.lat) || !isFinite(loc.lng)) return;
+  if(depthCache.has(loc.key)) return;
+  const key = blockFor(loc.lat, loc.lng);
+  if(!key) { depthCache.set(loc.key, null); return; }
+  const blk = depthBlocks.get(key);
+  if(blk === undefined){
+    depthLoadBlock(key).then(() => {
+      depthCache.delete(loc.key);
+      const d = depthAtPoint(loc.lat, loc.lng);
+      depthCache.set(loc.key, d);
+      render();
+    });
+    return;
+  }
+  if(blk === 'loading') return;
+  depthCache.set(loc.key, depthAtPoint(loc.lat, loc.lng));
+}
+
+/* ---------------------------------------------------------------------
+   WIND AND SEA
+   --------------------------------------------------------------------- */
+const NWS_GRID = "https://api.weather.gov/gridpoints/MLB/42,94";   // the inlet's forecast cell
+const NDBC_ID  = "41070";
+let wx = null;      // {wind:[{t0,t1,deg,mph,gust}], wave:[{t0,t1,ft}], per:[{t0,t1,s}]}
+let buoy = null;    // {obsTime, wvht_ft, dpd, mwd}
+let wxErr = null, buoyErr = null;
+
+function parseISODur(s){
+  const m = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:([\d.]+)S)?)?$/.exec(s);
+  if(!m) return 3600000;
+  return ((+m[3]||0)*86400 + (+m[4]||0)*3600 + (+m[5]||0)*60 + (+m[6]||0))*1000;
+}
+/* NWS gridpoint values are a list of {validTime:"<iso>/<duration>", value}.
+   A single entry can cover two and a half days (the wave height ones do), so
+   they are expanded into explicit spans and looked up by instant. */
+function nwsSpans(node, conv){
+  if(!node || !Array.isArray(node.values)) return [];
+  return node.values.filter(v => v.value !== null).map(v => {
+    const [iso, dur] = v.validTime.split("/");
+    const t0 = new Date(iso);
+    return { t0, t1: new Date(t0.getTime() + parseISODur(dur)), v: conv(v.value) };
+  });
+}
+/* Null-tolerant on purpose: it is called as spanAt(wx && wx.dir, t) all through
+   the inlet card, and wx is null for the whole first paint and for good after a
+   failed forecast fetch. An unguarded for..of over that threw "arr is not
+   iterable" out of render() and blanked the ENTIRE page — every card, not just
+   the inlet one — whenever the NWS call had not landed yet. The board must
+   degrade to tides-only, never to nothing. */
+const spanAt = (arr, t) => {
+  if(!Array.isArray(arr)) return null;
+  for(const s of arr){ if(t >= s.t0 && t < s.t1) return s.v; }
+  return null;
+};
+
+async function fetchWx(){
+  const r = await fetch(NWS_GRID, { headers:{ "Accept":"application/geo+json" } });
+  if(!r.ok) throw new Error("NWS " + r.status);
+  const p = (await r.json()).properties;
+  const KMH_TO_MPH = 0.621371, M_TO_FT = 3.28084;
+  return {
+    wind: nwsSpans(p.windSpeed, v => v*KMH_TO_MPH),
+    dir:  nwsSpans(p.windDirection, v => v),
+    gust: nwsSpans(p.windGust, v => v*KMH_TO_MPH),
+    wave: nwsSpans(p.waveHeight, v => v*M_TO_FT),
+    per:  nwsSpans(p.wavePeriod, v => v),
+    updated: p.updateTime ? new Date(p.updateTime) : null
+  };
+}
+
+/* NDBC serves no CORS header, so the reading comes in through a relay — the
+   same chain WTF uses, REORDERED on measurement (2026-08-05, this repo's
+   origin): allorigins answered with the full file, corsproxy.io returned 403,
+   codetabs was CORS-blocked outright, and NDBC direct fails by definition.
+   WTF puts corsproxy first and says it is "the one that reliably works", which
+   may still hold from janfishes.github.io — these relays gate on the calling
+   origin, so the order that wins can differ per site. If the buoy stops
+   answering from the deployed board, re-measure before re-ordering; do not
+   assume WTF's order transfers. Timeouts are short because the card repaints
+   as soon as ANY source lands and the wind forecast no longer waits on it. */
+const ndbcTxt = id => 'https://www.ndbc.noaa.gov/data/realtime2/' + id + '.txt';
+const BUOY_SOURCES = [
+  { name:'allorigins', ms:8000, url:id => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ndbcTxt(id)) },
+  { name:'corsproxy',  ms:6000, url:id => 'https://corsproxy.io/?url=' + encodeURIComponent(ndbcTxt(id)) },
+  { name:'ndbc',       ms:4000, url:id => ndbcTxt(id) },
+  { name:'codetabs',   ms:6000, url:id => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(ndbcTxt(id)) }
+];
+function fetchT(url, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { signal: ctl.signal }).finally(() => clearTimeout(t));
+}
+function parseNdbc(text){
+  const lines = text.split('\n');
+  if(lines.length < 3) return null;
+  const head = lines[0].replace(/^#/,'').trim().split(/\s+/);
+  const row  = lines[2].trim().split(/\s+/);
+  const g = k => { const i = head.indexOf(k); return (i < 0 || row[i] === 'MM') ? null : parseFloat(row[i]); };
+  const obsTime = new Date(Date.UTC(+row[0], +row[1]-1, +row[2], +row[3], +row[4]));
+  if(isNaN(obsTime.getTime())) return null;
+  const wvht = g('WVHT');
+  if(wvht == null) return null;                  // no sea state = nothing this card can use
+  return { obsTime, wvht_ft: wvht*3.28084, dpd: g('DPD'), apd: g('APD'), mwd: g('MWD'), wtmp: g('WTMP') };
+}
+/* The last good reading is kept on the device. These public relays are the
+   least reliable thing the board touches — measured across one evening, the
+   working one changed twice — and a swell does not swing round in an hour, so
+   a reading from earlier today still tells you which way the sea is running.
+   Far better than falling back to "the sea follows the wind", which is the
+   assumption that is wrong exactly when it matters: a ground swell out of the
+   east under a light west wind is the classic Ponce trap. WTF keeps its buoy
+   reading the same way and for the same reason. */
+const BUOY_KEY = 'tide-buoy-last';
+function saveBuoy(b){
+  try{ lsSet(BUOY_KEY, JSON.stringify(Object.assign({}, b, { obsTime: b.obsTime.getTime() }))); }catch(e){}
+}
+function loadBuoy(){
+  try{
+    const o = JSON.parse(lsGet(BUOY_KEY) || 'null');
+    if(!o || !o.obsTime) return null;
+    o.obsTime = new Date(o.obsTime);
+    return o;
+  }catch(e){ return null; }
+}
+async function fetchBuoy(){
+  let last = null;
+  for(const src of BUOY_SOURCES){
+    try{
+      const r = await fetchT(src.url(NDBC_ID), src.ms);
+      if(!r.ok) throw new Error(src.name + ' ' + r.status);
+      const p = parseNdbc(await r.text());
+      if(p){ saveBuoy(p); p.live = true; return p; }
+      last = new Error(src.name + ' returned nothing readable');
+    }catch(e){ last = e; }
+  }
+  // Nothing answered. A saved reading still beats nothing, but only while it is
+  // young enough to describe today's sea — past 30 h the freshness test in
+  // inletAt rejects it anyway and the card says so.
+  const cached = loadBuoy();
+  if(cached){ cached.live = false; return cached; }
+  throw last || new Error('buoy unreachable');
+}
+
+/* ---------------------------------------------------------------------
+   THE INLET — where the run windows come from
+
+   A wave running into an opposing current is squeezed: it slows, shortens
+   and stands up. That is the whole story of a bar, and it is why an ebb at
+   Ponce with an east sea breaks when the same sea on the flood does not.
+
+   Linear wave theory on a current gives the amplification directly. With
+   deep-water phase speed c0 = gT/(2pi) and U the current component ALONG the
+   wave's direction of travel (negative when the current opposes it):
+
+       s = sqrt(1 + 4U/c0)          H/H0 = sqrt( 2 / (s * (1 + s)) )
+
+   s = 1 and H/H0 = 1 in still water; s falls as the opposition builds and the
+   height runs away as s -> 0, which is the blocking point at U = -c0/4. For a
+   7-second sea, c0 is about 21 kt and blocking is around 5 kt — more than
+   Ponce runs — but a 3.5 kt ebb still puts s near 0.58 and multiplies the
+   height by about 1.5, and steepens it far more than that. It is the
+   steepening, not the height, that stands a boat on end, so the rating leans
+   on the ratio rather than on feet alone.
+   --------------------------------------------------------------------- */
+const G_MS2 = 9.80665, MS_PER_KT = 0.514444;
+
+function waveAmplification(U_kt_along, periodS){
+  if(!periodS || periodS <= 0) return { amp:1, ratio:0 };
+  const c0 = G_MS2 * periodS / (2*Math.PI);          // m/s
+  const U  = U_kt_along * MS_PER_KT;                 // m/s, negative = opposing
+  const r  = 4*U/c0;
+  if(r <= -0.999) return { amp:4, ratio:1 };         // blocked; the maths runs away, the sea just breaks
+  const s = Math.sqrt(1 + r);
+  const amp = Math.sqrt(2/(s*(1+s)));
+  return { amp: Math.min(amp, 4), ratio: Math.max(0, -r) };
+}
+
+/* One hour of the day, fully worked out. */
+function inletAt(t, inletEvents, mx){
+  const td = tideAt(inletEvents, t);
+  if(!td) return null;
+
+  // current: derived from the rate of rise/fall, scaled to the calibrated peak
+  const strength = Math.min(1, Math.abs(td.dpm)/mx);
+  const speedKt  = strength * peakEbbKt;
+  const flowDeg  = td.falling ? EBB_HEADING : FLOOD_HEADING;
+
+  // sea: buoy direction while it is fresh, forecast wind direction after that
+  const windDeg = spanAt(wx && wx.dir, t);
+  const windMph = spanAt(wx && wx.wind, t);
+  let hs   = spanAt(wx && wx.wave, t);
+  let per  = spanAt(wx && wx.per,  t);
+  let seaFromDeg = null, src = null;
+
+  const buoyFresh = buoy && (t - buoy.obsTime) < 30*3600000 && (t - buoy.obsTime) > -3600000;
+  if(buoy && buoy.mwd != null && buoyFresh){ seaFromDeg = buoy.mwd; src = 'buoy'; }
+  else if(windDeg != null){ seaFromDeg = windDeg; src = 'wind'; }
+
+  if(hs == null && buoy && buoyFresh) hs = buoy.wvht_ft;
+  if(per == null && buoy && buoy.dpd != null && buoyFresh) per = buoy.dpd;
+
+  if(hs == null || seaFromDeg == null) return { t, td, speedKt, flowDeg, windDeg, windMph, incomplete:true };
+
+  // waves travel TOWARD (from + 180). Component of the current along that.
+  const travelDeg = (seaFromDeg + 180) % 360;
+  const delta = ((travelDeg - flowDeg + 540) % 360) - 180;   // -180..180
+  const along = speedKt * Math.cos(delta*Math.PI/180);       // + following, - opposing
+  const { amp, ratio } = waveAmplification(along, per || 7);
+  const steep = hs * amp;
+
+  return { t, td, speedKt, flowDeg, windDeg, windMph, hs, per, seaFromDeg, src,
+           along, amp, ratio, steep, opposing: along < 0 };
+}
+
+/* The rating. Thresholds are on the STEEPENED height, because that is the sea
+   the boat actually meets on the bar, and they are deliberately conservative:
+   this is a bar with a history. */
+/* A missing forecast has two quite different causes and the card must not blur
+   them. The NWS grid begins at the last issuance, so the early hours of TODAY
+   have no forecast simply because they have already happened — calling that
+   "NO DATA" made a working board look broken for half its first screen. Past
+   is past; only a genuine gap ahead of now is a gap. */
+function rate(x){
+  if(x && x.t < Date.now() - 3600000) return { k:'past', word:'PAST' };
+  if(!x || x.incomplete) return { k:'unknown', word:'NO FORECAST' };
+  const h = x.steep;
+  let k;
+  if(h < 2.2)      k = 'go';
+  else if(h < 3.5) k = 'caution';
+  else if(h < 5.5) k = 'rough';
+  else             k = 'stop';
+  // A hard opposing current is its own warning even under a small sea: it is
+  // the confused, short, standing water that catches people out, and the
+  // significant height does not describe it.
+  if(x.opposing && x.ratio > 0.45 && k === 'go') k = 'caution';
+  if(x.opposing && x.ratio > 0.75 && k === 'caution') k = 'rough';
+  const word = { go:'GOOD', caution:'CAUTION', rough:'ROUGH', stop:'DANGEROUS' }[k];
+  return { k, word };
+}
+const RATE_ORDER = { go:0, caution:1, rough:2, stop:3, unknown:4, past:5 };
+const RATE_COLOR = { go:'var(--go)', caution:'var(--caution)', rough:'var(--rough)',
+                     stop:'var(--stop)', unknown:'var(--hair)', past:'#E4E8EB' };
+
+/* Walk the day in 20-minute steps and glue equal ratings into windows. */
+function inletDay(ds, de){
+  const ev = shifted('inlet');
+  const mx = maxRate(ev);
+  const out = [];
+  const STEP = 20*60000;
+  for(let t = +ds; t < +de; t += STEP){
+    const x = inletAt(new Date(t), ev, mx);
+    if(!x) continue;
+    out.push({ x, r: rate(x) });
+  }
+  return out;
+}
+function inletWindows(samples){
+  const wins = [];
+  for(const s of samples){
+    const last = wins[wins.length-1];
+    if(last && last.k === s.r.k){ last.end = s.x.t; last.items.push(s); }
+    else wins.push({ k:s.r.k, word:s.r.word, start:s.x.t, end:s.x.t, items:[s] });
+  }
+  // a 20-minute sliver between two long stretches is noise, not a window
+  return wins.filter(w => (w.end - w.start) >= 40*60000 || wins.length <= 2);
+}
+
+function degToCompass(d){
+  const pts = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return pts[Math.round(((d%360)/22.5))%16];
+}
+function windowWhy(w){
+  const mid = w.items[Math.floor(w.items.length/2)].x;
+  if(w.k === 'past') return 'Already gone by.';
+  if(mid.incomplete) return 'The forecast does not reach this far out yet.';
+  const bits = [];
+  bits.push(mid.td.falling
+    ? `<em>ebb</em> running out at about ${mid.speedKt.toFixed(1)} kt`
+    : `<em>flood</em> setting in at about ${mid.speedKt.toFixed(1)} kt`);
+  bits.push(`${mid.hs.toFixed(1)} ft sea from the ${degToCompass(mid.seaFromDeg)}`
+            + (mid.per ? ` at ${Math.round(mid.per)} sec` : ''));
+  if(mid.windMph != null && mid.windDeg != null){
+    bits.push(`wind ${degToCompass(mid.windDeg)} ${Math.round(mid.windMph)} mph`);
+  }
+  let tail;
+  if(mid.opposing && mid.amp > 1.12){
+    tail = ` &mdash; sea and current <em>opposed</em>, standing it up to about ${mid.steep.toFixed(1)} ft.`;
+  }else if(mid.opposing){
+    tail = ' &mdash; slightly opposed, but not enough current to stand it up.';
+  }else{
+    tail = ' &mdash; sea and current <em>running together</em>.';
+  }
+  return bits.join(', ') + tail;
+}
+
+function inletCardHTML(ds, de){
+  const samples = inletDay(ds, de);
+  if(!samples.length) return '';
+  const wins = inletWindows(samples);
+  const isToday = activeDay === 0;
+  const now = new Date();
+
+  const rows = wins.map(w => {
+    const endT = new Date(+w.end + 20*60000);
+    const past = isToday && endT < now;
+    return `<div class="win ${w.k}" ${past ? 'style="opacity:.45"' : ''}>
+      <div class="rate">${w.word}</div>
+      <div>
+        <div class="when">${fmtC(w.start)}&ndash;${fmtC(endT)}</div>
+        <div class="why">${windowWhy(w)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const ribbon = samples.map(s =>
+    `<i style="background:${RATE_COLOR[s.r.k]}" title="${fmtC(s.x.t)} ${s.r.word}"></i>`).join('');
+
+  // where the sea direction came from, said plainly
+  const usedBuoy = samples.some(s => s.x.src === 'buoy');
+  const usedWind = samples.some(s => s.x.src === 'wind');
+  let prov;
+  if(usedBuoy && usedWind){
+    prov = `Sea direction: buoy ${NDBC_ID} while its reading is fresh, forecast wind after that.`;
+  }else if(usedBuoy){
+    prov = `Sea direction measured at buoy ${NDBC_ID}`
+         + (buoy ? ` (${ageWords(Date.now() - buoy.obsTime.getTime())}` +
+                   (buoy.live === false ? ', saved on this device — could not refresh' : '') + ')' : '')
+         + '.';
+  }else if(usedWind){
+    prov = `<span class="conf low">Sea direction assumed to follow the forecast wind</span> &mdash; the buoy
+            reading could not be had, and NWS publishes no wave-direction forecast for this point. Fine for a
+            local chop, wrong for a ground swell.`;
+  }else{
+    prov = 'No wind or sea data could be fetched. Windows below are tide only &mdash; they say nothing about the sea.';
+  }
+  const errs = [];
+  if(wxErr)   errs.push('wind/wave forecast: ' + wxErr);
+  if(buoyErr) errs.push('buoy: ' + buoyErr);
+
+  return `<div class="inlet">
+    <div class="inlet-head">
+      <div>
+        <div class="inlet-title">Running the inlet</div>
+        <div class="inlet-sub">Ponce de Leon Inlet bar &middot; ${activeDay === 0 ? 'today' : fmtD(ds)}</div>
+      </div>
+      <button class="offset-chip" style="width:auto;padding:0;text-align:right" onclick="openEbbDlg()">peak ebb ${peakEbbKt.toFixed(1)} kt<br>(tap to calibrate)</button>
+    </div>
+    <div class="ribbon">${ribbon}</div>
+    <div class="ribbon-ax"><span>12a</span><span>6a</span><span>noon</span><span>6p</span><span>12a</span></div>
+    ${rows}
+    <div class="inlet-foot">${prov}${errs.length ? '<br>Could not reach &mdash; ' + errs.join('; ') + '.' : ''}</div>
+  </div>`;
+}
+function ageWords(ms){
+  const mins = Math.round(ms/60000);
+  if(mins < 60) return mins + ' min ago';
+  const hrs = Math.round(ms/3600000);
+  if(hrs < 36) return hrs + 'h ago';
+  return Math.round(ms/86400000) + ' days ago';
+}
+function bestRatingForDay(dayIdx){
+  const [ds,de] = dayWindow(dayIdx);
+  const s = inletDay(ds,de);
+  if(!s.length) return 'unknown';
+  let best = 'unknown';
+  for(const x of s) if(RATE_ORDER[x.r.k] < RATE_ORDER[best]) best = x.r.k;
+  return best;
+}
+
+/* ---------------------------------------------------------------------
+   TIDE CURVE (the signature)
+   --------------------------------------------------------------------- */
+function curveSVG(events, dayStart, dayEnd){
+  const span = events.filter(e => e.time >= new Date(dayStart - 32400000) && e.time <= new Date(+dayEnd + 32400000));
+  if(span.length < 2) return "";
+  const X = t => ((t - dayStart)/(dayEnd - dayStart))*600;
+  const fts = span.map(e => e.ft);
+  const min = Math.min(...fts), max = Math.max(...fts);
+  const Y = f => 54 - ((f - min)/(max - min || 1))*44;
+  const STEPS = 16;
+  const seg = (a,b) => {
+    let dd = "";
+    for(let s = 0; s <= STEPS; s++){
+      const frac = s/STEPS;
+      const f = a.ft + (b.ft - a.ft)*(1 - Math.cos(Math.PI*frac))/2;
+      const t = new Date(a.time.getTime() + (b.time - a.time)*frac);
+      dd += (dd === "" ? "M" : "L") + X(t).toFixed(1) + "," + Y(f).toFixed(1);
+    }
+    return dd;
+  };
+  let d = "", ebbPaths = "";
+  for(let i = 0; i < span.length - 1; i++){
+    const s = seg(span[i], span[i+1]);
+    d += (d === "" ? "" : " ") + s;
+    if(span[i].type === "H"){
+      ebbPaths += `<path d="${s}" fill="none" stroke="#B87E00" stroke-width="4.5" stroke-linecap="round"/>`;
+    }
+  }
+  let nowMark = "";
+  const now = new Date();
+  if(now >= dayStart && now < dayEnd){
+    const x = X(now);
+    nowMark = `<line x1="${x}" y1="4" x2="${x}" y2="60" stroke="#B23A2B" stroke-width="1" stroke-dasharray="3,3"/>
+               <circle class="now-dot" cx="${x}" cy="8" r="3.5" fill="#B23A2B"/>`;
+  }
+  return `<svg class="curve" xmlns="http://www.w3.org/2000/svg" width="600" height="64" viewBox="0 0 600 64" preserveAspectRatio="none" aria-hidden="true">
+    <rect x="0" y="0" width="600" height="64" fill="#EDF2F6" opacity="0.6"/>
+    <line x1="150" y1="0" x2="150" y2="64" stroke="#C4CBD1" stroke-width="1"/>
+    <line x1="300" y1="0" x2="300" y2="64" stroke="#C4CBD1" stroke-width="1"/>
+    <line x1="450" y1="0" x2="450" y2="64" stroke="#C4CBD1" stroke-width="1"/>
+    <text x="153" y="62" font-size="9" font-family="monospace" fill="#0E1F2E">6a</text>
+    <text x="303" y="62" font-size="9" font-family="monospace" fill="#0E1F2E">12p</text>
+    <text x="453" y="62" font-size="9" font-family="monospace" fill="#0E1F2E">6p</text>
+    <path d="${d}" fill="none" stroke="#5C6B78" stroke-width="2"/>
+    ${ebbPaths}${nowMark}
+  </svg>`;
+}
+
+/* ---------------------------------------------------------------------
+   SOLUNAR FEEDING TIMES
+   --------------------------------------------------------------------- */
+function moonTransits(dayStart){
+  const alts = [];
+  for(let m = 0; m <= 1440; m += 4){
+    const t = new Date(dayStart.getTime() + m*60000);
+    alts.push({ t, alt: SunCalc.getMoonPosition(t, INLET.lat, INLET.lng).altitude });
+  }
+  const overhead = [], underfoot = [];
+  for(let i = 1; i < alts.length - 1; i++){
+    if(alts[i].alt > alts[i-1].alt && alts[i].alt > alts[i+1].alt) overhead.push(alts[i].t);
+    if(alts[i].alt < alts[i-1].alt && alts[i].alt < alts[i+1].alt) underfoot.push(alts[i].t);
+  }
+  return { overhead, underfoot };
+}
+function feedingTimes(dayStart, dayEnd){
+  const { overhead, underfoot } = moonTransits(dayStart);
+  const mt = SunCalc.getMoonTimes(dayStart, INLET.lat, INLET.lng);
+  const evs = [];
+  for(const t of overhead)  evs.push({ kind:"Major", sub:"moon overhead",  center:t, halfMin:60 });
+  for(const t of underfoot) evs.push({ kind:"Major", sub:"moon underfoot", center:t, halfMin:60 });
+  if(mt.rise) evs.push({ kind:"Minor", sub:"moonrise", center:mt.rise, halfMin:30 });
+  if(mt.set)  evs.push({ kind:"Minor", sub:"moonset",  center:mt.set,  halfMin:30 });
+  return evs.filter(e => e.center >= dayStart && e.center < dayEnd)
+            .sort((a,b) => a.center - b.center)
+            .map(e => Object.assign({}, e, {
+              from: new Date(e.center.getTime() - e.halfMin*60000),
+              to:   new Date(e.center.getTime() + e.halfMin*60000)
+            }));
+}
+function moonPhaseLabel(d){
+  const p = SunCalc.getMoonIllumination(d);
+  const names = ["New moon","Waxing crescent","First quarter","Waxing gibbous",
+                 "Full moon","Waning gibbous","Last quarter","Waning crescent"];
+  const idx = Math.round(p.phase*8)%8;
+  const strong = p.fraction < 0.12 || p.fraction > 0.88;
+  return names[idx] + " &middot; " + Math.round(p.fraction*100) + "% lit" + (strong ? " &middot; peak activity" : "");
+}
+function feedingCardHTML(ds, de){
+  let evs;
+  try{ evs = feedingTimes(ds,de); }catch(e){ return ""; }
+  if(!evs.length) return "";
+  return `<div class="feedcard">
+    <div class="fc-head">
+      <div class="fc-title">Active feeding times</div>
+      <div class="fc-moon">${moonPhaseLabel(new Date(ds.getTime() + 43200000))}</div>
+    </div>
+    <div class="feedrows">
+      ${evs.map(e => `<div class="feed-ev">
+        <div class="lbl">${e.kind}</div>
+        <div class="t">${fmtC(e.from)}&ndash;${fmtC(e.to)}</div>
+        <div class="sub">${e.sub}</div>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
+   THE DEPTH STRIP
+   --------------------------------------------------------------------- */
+function depthStripHTML(loc, evAll, ds, de){
+  if(!isFinite(loc.lat) || !isFinite(loc.lng)){
+    return `<div class="depth-strip"><span class="sub">No position for this spot, so no depth.</span>
+      <button class="setpos" onclick="openSpotDlg('${loc.key}')">set position</button></div>`;
+  }
+  ensureDepth(loc);
+  const d = depthCache.get(loc.key);
+  if(d === undefined) return `<div class="depth-strip"><span class="sub">Reading the survey&hellip;</span></div>`;
+  if(d === null){
+    return `<div class="depth-strip"><span class="sub">No surveyed contour within a kilometre of this
+      position &mdash; nothing to stand behind.</span></div>`;
+  }
+  // water now (only meaningful on today) and at the next low
+  const now = new Date();
+  const showNow = activeDay === 0;
+  const tn = showNow ? tideAt(evAll, now) : null;
+  const bits = [];
+  const water = tideFt => d.ft + tideFt - NAVD88_ABOVE_MLLW;
+  if(tn){
+    bits.push(`<span>Water now <b>~${water(tn.ft).toFixed(1)} ft</b></span>`);
+  }
+  // the day's lowest low at this spot
+  const lows = evAll.filter(e => e.type === "L" && e.time >= ds && e.time < de);
+  if(lows.length){
+    const lo = lows.reduce((a,b) => b.ft < a.ft ? b : a);
+    bits.push(`<span>${fmtT(lo.time)} low <b>~${water(lo.ft).toFixed(1)} ft</b></span>`);
+  }
+  const band = d.single ? `${d.ft} ft contour` : `between the ${d.lo} and ${d.hi} ft contours`;
+  bits.push(`<span class="sub">bottom ~${d.ft.toFixed(1)} ft NAVD88, ${band}</span>`);
+  // Each bit is its OWN span: the strip is a flex row with a 14px gap, and a
+  // gap only separates ELEMENTS. Joined as bare strings they ran together into
+  // one text node and read "~19.0 ftat 7:15 AM low".
+  return `<div class="depth-strip">${bits.join('')}</div>`;
+}
+
+/* ---------------------------------------------------------------------
+   RENDER
+   --------------------------------------------------------------------- */
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(){
+  const [ds,de] = dayWindow(activeDay);
+  const isToday = activeDay === 0;
+  let html = inletCardHTML(ds,de) + feedingCardHTML(ds,de);
+
+  const ordered = LOCATIONS.slice().sort((a,b) =>
+    (offsets[a.key].hi + offsets[a.key].lo) - (offsets[b.key].hi + offsets[b.key].lo));
+
+  for(const loc of ordered){
+    const evAll = shifted(loc.key);
+    const evDay = evAll.filter(e => e.time >= ds && e.time < de);
+    const st = isToday ? tideStateNow(evAll) : null;
+    const ebbing = st && st.falling;
+
+    let ebbLines = [];
+    for(let i = 0; i < evAll.length - 1; i++){
+      const a = evAll[i], b = evAll[i+1];
+      if(a.type === "H" && b.type === "L" && b.time >= ds && a.time < de){
+        ebbLines.push(`<b>${fmtT(a.time)} &rarr; ${fmtT(b.time)}</b>`);
+      }
+    }
+    const o = offsets[loc.key];
+    const offTxt = loc.fixed ? "NOAA reference &mdash; no lag"
+      : `lag: H +${o.hi}m / L +${o.lo}m ${loc.est ? "(est. &mdash; tap to adjust)" : "(tap to adjust)"}`;
+
+    html += `<div class="card ${ebbing ? "ebbing" : ""}">
+      <div class="card-head">
+        <div class="loc-name">${esc(loc.name)}
+          ${loc.charted && loc.charted !== loc.name ? `<span class="charted">${esc(loc.charted)}</span>` : ''}</div>
+        ${st ? `<div class="state ${st.falling ? "ebb" : "flood"}">${st.falling ? "&#9660; Ebbing" : "&#9650; Flooding"} &middot; ${st.next.type === "H" ? "high" : "low"} ${fmtT(st.next.time)}</div>` : ""}
+      </div>
+      ${loc.fixed
+        ? `<div class="offset-chip" style="cursor:default;text-decoration:none">${offTxt}</div>`
+        : `<button class="offset-chip" onclick="openDlg('${loc.key}')">${offTxt}</button>`}
+      ${curveSVG(evAll, ds, de)}
+      ${depthStripHTML(loc, evAll, ds, de)}
+      <div class="events">
+        ${evDay.map(e => `<div class="ev">
+            <div class="lbl">${e.type === "H" ? "High" : "Low"}</div>
+            <div class="t">${fmtT(e.time)}</div>
+            <div class="h">${e.ft.toFixed(1)} ft</div>
+          </div>`).join("") || `<div class="ev"><div class="lbl">No turns this day</div></div>`}
+      </div>
+      ${ebbLines.length ? `<div class="ebb-strip">Outgoing: ${ebbLines.join(" &middot; ")}</div>` : ""}
+    </div>`;
+  }
+  document.getElementById("content").innerHTML = html;
+  renderDaynav();
+}
+
+function renderDaynav(){
+  let html = "";
+  for(let i = 0; i < 7; i++){
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const k = preds.length ? bestRatingForDay(i) : 'unknown';
+    html += `<button class="daybtn ${i === activeDay ? "active" : ""}" onclick="setDay(${i})">
+      <span class="dot" style="background:${RATE_COLOR[k]}"></span>${i === 0 ? "Today" : fmtD(d)}</button>`;
+  }
+  document.getElementById("daynav").innerHTML = html;
+}
+function setDay(i){ activeDay = i; render(); }
+
+/* ---------------------------------------------------------------------
+   DIALOGS
+   --------------------------------------------------------------------- */
+let editingKey = null;
+function openDlg(key){
+  editingKey = key;
+  const loc = LOCATIONS.find(l => l.key === key);
+  const dlg = document.getElementById("dlg");
+  if(typeof dlg.showModal !== "function"){
+    const hi = parseInt(prompt("High tide lag for " + loc.name + " (minutes after inlet):", offsets[key].hi), 10);
+    if(isNaN(hi)) return;
+    const lo = parseInt(prompt("Low tide lag for " + loc.name + " (minutes after inlet):", offsets[key].lo), 10);
+    if(isNaN(lo)) return;
+    offsets[key] = { hi, lo }; saveOffsets(); render();
+    return;
+  }
+  document.getElementById("dlgTitle").textContent = "Adjust lag — " + loc.name;
+  document.getElementById("inHigh").value = offsets[key].hi;
+  document.getElementById("inLow").value  = offsets[key].lo;
+  document.getElementById("btnRemove").style.display = loc.added ? "" : "none";
+  dlg.showModal();
+}
+document.getElementById("btnCancel").onclick = () => document.getElementById("dlg").close();
+document.getElementById("btnSave").onclick = () => {
+  offsets[editingKey] = {
+    hi: parseInt(document.getElementById("inHigh").value, 10) || 0,
+    lo: parseInt(document.getElementById("inLow").value, 10) || 0
+  };
+  saveOffsets();
+  document.getElementById("dlg").close();
+  render();
+};
+document.getElementById("btnRemove").onclick = () => {
+  addedSpots = addedSpots.filter(s => s.key !== editingKey);
+  delete offsets[editingKey]; delete userPos[editingKey]; depthCache.delete(editingKey);
+  saveAdded(); savePos(); saveOffsets();
+  document.getElementById("dlg").close();
+  loadPrefs(); render();
+};
+
+function openEbbDlg(){
+  const dlg = document.getElementById("ebbDlg");
+  document.getElementById("inPeakEbb").value = peakEbbKt;
+  if(typeof dlg.showModal === "function") dlg.showModal();
+}
+document.getElementById("ebbCancel").onclick = () => document.getElementById("ebbDlg").close();
+document.getElementById("ebbSave").onclick = () => {
+  const v = parseFloat(document.getElementById("inPeakEbb").value);
+  if(v > 0.4 && v < 9){ peakEbbKt = v; lsSet(LS.ebb, String(v)); }
+  document.getElementById("ebbDlg").close();
+  render();
+};
+
+/* Distance from the inlet, and the lag curve fitted through the spots whose
+   position IS known. A spot's lag is mostly a function of how far the tide has
+   had to travel to reach it, so a new spot is placed on that curve and marked
+   est. — the same status the built-in upriver spots carry. */
+const NM_PER_DEG = 60;
+function distNm(a,b){
+  const dx = (a.lng - b.lng)*Math.cos((a.lat + b.lat)/2*Math.PI/180), dy = a.lat - b.lat;
+  return Math.sqrt(dx*dx + dy*dy)*NM_PER_DEG;
+}
+function estimateLag(lat,lng){
+  const anchors = LOCATIONS
+    .filter(l => isFinite(l.lat) && isFinite(l.lng))
+    .map(l => ({ d: distNm({lat,lng:lng}, INLET) , dd: distNm({lat:l.lat,lng:l.lng}, INLET),
+                 hi: offsets[l.key].hi, lo: offsets[l.key].lo }))
+    .sort((a,b) => a.dd - b.dd);
+  const d = distNm({lat,lng}, INLET);
+  if(!anchors.length) return { hi:60, lo:75 };
+  if(d <= anchors[0].dd) return { hi:Math.round(anchors[0].hi), lo:Math.round(anchors[0].lo) };
+  for(let i = 0; i < anchors.length - 1; i++){
+    const a = anchors[i], b = anchors[i+1];
+    if(d >= a.dd && d <= b.dd){
+      const f = (b.dd - a.dd) > 0 ? (d - a.dd)/(b.dd - a.dd) : 0;
+      return { hi: Math.round(a.hi + (b.hi - a.hi)*f), lo: Math.round(a.lo + (b.lo - a.lo)*f) };
+    }
+  }
+  const last = anchors[anchors.length-1], prev = anchors[anchors.length-2] || anchors[0];
+  const span = (last.dd - prev.dd) || 1;
+  const f = (d - last.dd)/span;
+  return { hi: Math.round(last.hi + (last.hi - prev.hi)*f), lo: Math.round(last.lo + (last.lo - prev.lo)*f) };
+}
+
+let spotTarget = null;      // null = adding a new spot; a key = setting that spot's position
+function openSpotDlg(key){
+  spotTarget = key || null;
+  const dlg = document.getElementById("spotDlg");
+  document.getElementById("spotDlgTitle").textContent =
+    spotTarget ? "Set position — " + (LOCATIONS.find(l => l.key === spotTarget) || {}).name : "Add a spot";
+  document.getElementById("spotDlgNote").innerHTML = spotTarget
+    ? `This spot has a lag but no position, so it cannot show a depth. Pick the nearest named waypoint
+       and the board will read the survey there. The lag is not touched.`
+    : `Every named waypoint on the WTF chart, from Tomoka Basin down to Mosquito Lagoon. Picking one gives
+       it a card with an estimated lag &mdash; calibrate it once you've watched a real turn.`;
+  document.getElementById("spotSearch").value = "";
+  renderSpotList("");
+  if(typeof dlg.showModal === "function") dlg.showModal();
+}
+function renderSpotList(q){
+  q = (q||"").toLowerCase().trim();
+  const rows = WTF_SPOTS
+    .filter(s => !q || s[0].toLowerCase().includes(q) || s[3].toLowerCase().includes(q))
+    .slice(0,300)
+    .map((s,i) => `<button class="spotrow" onclick="pickSpot(${WTF_SPOTS.indexOf(s)})">
+        <span>${esc(s[0])}</span><span class="k">${esc(s[3])} &middot; ${distNm({lat:s[1],lng:s[2]}, INLET).toFixed(1)} nm</span>
+      </button>`).join("");
+  document.getElementById("spotList").innerHTML = rows || `<div style="padding:12px;font-size:12px;color:var(--ink-soft)">Nothing matches.</div>`;
+}
+document.getElementById("spotSearch").addEventListener("input", e => renderSpotList(e.target.value));
+document.getElementById("spotCancel").onclick = () => document.getElementById("spotDlg").close();
+document.getElementById("addSpotBtn").onclick = () => openSpotDlg(null);
+
+function pickSpot(i){
+  const s = WTF_SPOTS[i];
+  if(!s) return;
+  if(spotTarget){
+    userPos[spotTarget] = { lat:s[1], lng:s[2] };
+    savePos();
+    const loc = LOCATIONS.find(l => l.key === spotTarget);
+    if(loc){ loc.lat = s[1]; loc.lng = s[2]; if(!loc.charted) loc.charted = s[0]; }
+    depthCache.delete(spotTarget);
+  }else{
+    const key = 'x-' + s[0].toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    if(LOCATIONS.some(l => l.key === key)){ document.getElementById("spotDlg").close(); return; }
+    const lag = estimateLag(s[1], s[2]);
+    addedSpots.push({ key, name:s[0], charted:s[3], lat:s[1], lng:s[2], hi:lag.hi, lo:lag.lo });
+    saveAdded();
+    loadPrefs();
+  }
+  document.getElementById("spotDlg").close();
+  render();
+}
+
+/* ---------------------------------------------------------------------
+   BOOT
+   --------------------------------------------------------------------- */
+/* Each feed repaints the moment IT lands, and they are never awaited together.
+   The first cut used Promise.all, which tied the wind forecast — one call, back
+   in a few hundred ms — to the buoy, which walks a chain of four relays at up
+   to 9 s each. On a bad relay day the inlet card sat on "NO DATA" for half a
+   minute holding a forecast it already had. Measured, not theorised: that is
+   what the headless run caught. */
+function loadWeather(){
+  fetchWx()
+    .then(w => { wx = w; wxErr = null; })
+    .catch(e => { wxErr = e.message; })
+    .then(render);
+  fetchBuoy()
+    .then(b => { buoy = b; buoyErr = null; })
+    .catch(e => { buoyErr = e.message; })
+    .then(render);
+}
+
+async function boot(isRetry){
+  document.getElementById("content").innerHTML = '<div class="loading">Reading the tide from NOAA&hellip;</div>';
+  try{
+    preds = await fetchPreds();
+    document.getElementById("stationLine").textContent =
+      "NOAA station " + stationUsed.id + " · " + stationUsed.label + " · MLLW · local time";
+    render();
+    loadWeather();
+    if(!boot.timerSet){ setInterval(render, 60000); boot.timerSet = true; }
+  }catch(e){
+    const now = new Date();
+    if(now >= FALLBACK_BASE && now < FALLBACK_END){
+      preds = loadFallbackPreds();
+      document.getElementById("stationLine").textContent =
+        "NOAA station 8721138 · built-in tables · MLLW · local time";
+      render();
+      loadWeather();
+      if(!boot.timerSet){ setInterval(render, 60000); boot.timerSet = true; }
+      return;
+    }
+    document.getElementById("stationLine").textContent = "NOAA station: offline";
+    document.getElementById("content").innerHTML =
+      `<div class="err">Couldn't reach the NOAA tide service (${esc(e.message)}), and the built-in tide
+       tables have run out. They are refreshed automatically once a year &mdash; if this shows, the refresh
+       has not run. <br><br><button class="btn" onclick="boot(true)">Try again</button></div>`;
+    if(!isRetry){ setTimeout(() => { if(!preds.length) boot(true); }, 4000); }
+  }
+}
+
+/* Service worker: stale-while-revalidate on the page itself, so a repeat open
+   is instant and an open with no signal works at all. Same design as WTF's,
+   and it carries WTF's lesson with it — a new build always takes TWO opens,
+   the first serving the saved copy and the refetch landing for the next. The
+   pill below is what closes that gap when the user wants it now. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+async function updateCheck(){
+  try{
+    const r = await fetch('index.html?ping=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) return;
+    const t = await r.text();
+    const m = /const BUILD_NUM = (\d+)/.exec(t);
+    if(m && +m[1] > BUILD_NUM) showUpdatePill();
+  }catch(e){}
+}
+function showUpdatePill(){
+  if(document.getElementById('updatePill')) return;
+  const b = document.createElement('button');
+  b.id = 'updatePill'; b.className = 'updatepill'; b.textContent = 'New version — tap to update';
+  b.onclick = async () => {
+    if(b.dataset.busy) return;
+    b.dataset.busy = '1'; b.textContent = 'UPDATING…';
+    try{
+      const c = await caches.open('tideboard-shell-v1');
+      await Promise.race([ c.add(new Request('./index.html', {cache:'no-store'})),
+                           new Promise(r => setTimeout(r, 8000)) ]);
+    }catch(e){}
+    location.reload();
+  };
+  document.body.appendChild(b);
+}
+
+(function(){
+  loadPrefs();
+  renderDaynav();
+  boot(false);
+  updateCheck();
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible'){
+      render();
+      if(!updateCheck.last || Date.now() - updateCheck.last > 600000){
+        updateCheck.last = Date.now(); updateCheck();
+      }
+    }
+  });
+  document.getElementById('footNote').insertAdjacentHTML('beforeend',
+    `<br><br><span style="font-family:var(--mono);font-size:10px">Build ${BUILD_NUM} · ${BUILD_STAMP}</span>`);
+})();
+</script>
+</body>
+</html>

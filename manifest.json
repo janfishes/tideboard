@@ -1,0 +1,16 @@
+{
+  "name": "Tide Board — Halifax River & Ponce Inlet",
+  "short_name": "Tide Board",
+  "description": "Tides, water depth, feeding times and inlet run windows for the Halifax River and Ponce de Leon Inlet, Volusia County, Florida.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0E1F2E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
