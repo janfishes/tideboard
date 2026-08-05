@@ -510,7 +510,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 12;
+const BUILD_NUM = 13;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -726,16 +726,16 @@ const BUILTIN_LOCATIONS = [
      distinct NOAA 8721138 event (see WHICH ROWS ARE REAL, below), 2026-08-05:
 
        LOW   n=5  mean +188  median +189  sd 18  (SE 8)
-             +187 +189 +216 +189 +160        (7/21 through 7/25)
-       HIGH  n=6  mean +151  median +156  sd 15  (SE 6)
-             +148 +163 +136 +127 +168 +165   (7/21 through 7/26)
+             +187 +189 +216 +189 +160             (7/21 through 7/25)
+       HIGH  n=7  mean +149  median +148  sd 17  (SE 6)
+             +148 +163 +136 +127 +168 +165 +135   (7/21 through 8/05)
 
      LOW is 188, moved from the stored 170. Five observations at sd 18, standard
      error about 8 minutes, so the stored 170 sits more than two of them below
      the measured mean. Real, not scatter. Three of the five land within two
      minutes of each other at 187/189/189.
 
-     HIGH is 151, moved from the stored 144 — and it is the MEAN again, which is
+     HIGH is 149, and it is the MEAN again, which is
      the point of the story. The sheet's 7/22 high is written "6:56 AM"; at AM it
      differenced to +216, by far the worst reading in the set, dragging the sd to
      29 and leaving the mean and the median 9 minutes apart. The board shipped
@@ -744,12 +744,32 @@ const BUILTIN_LOCATIONS = [
      (2026-08-05): it differences to +163, the day reads Low 1:16 PM -> High
      6:56 PM five hours forty apart, and the scatter collapses to sd 15 with
      every point inside 127-168. With no outlier left to guard against there is
-     nothing for the median to protect, so the mean is the right estimator and
-     the value is 151.
+     nothing for the median to protect, so the mean is the right estimator. That
+     put it at 151 on six readings.
 
-     That is now a BETTER calibration than either NOAA-derived neighbour in
-     WTF's own knot table: sd 15 on the highs and 18 on the lows against the
-     Stevens gauges' 17-20. Both of this gauge's meridiem traps were in the same
+     SEVENTH READING, timed live rather than off the sheet — Jan watched today's
+     high, 2026-08-05, and called it at 4:45 PM with the staff at 1 ft 7 in.
+     NOAA 8721138's high that afternoon was 14:30, so it differences to +135,
+     comfortably inside the existing 127-168 spread and needing no adjudication.
+     The hour was ambiguous as reported ("45 pm") but the arithmetic settled it
+     before Jan confirmed: 5:45 PM would have been +195, three standard
+     deviations out, and 3:45 PM impossible. A tight lag does that — once the
+     scatter is 15 minutes wide, a wrong hour cannot hide in it, which is the
+     opposite of the 7/22 meridiem traps, where the set was still loose enough
+     to swallow one. With it the mean moves 151 -> 149, the median lands on 148
+     beside it, and sd widens a little to 17. n=7 now, all of one gauge.
+
+     Its HEIGHT is the better news: 1 ft 7 in = 1.58 ft, and the model below
+     predicts 0.59 x 2.792 - 0.04 = 1.61 ft = 19.3 in against the 19 in on the
+     staff. That is a fit built on four readings surviving a fifth it never saw,
+     to within a third of an inch. Refitting with it moves the scale not at all
+     (0.586 -> 0.59) and the offset from -0.04 to about -0.05, an eighth of an
+     inch, so the constants are LEFT ALONE — a change that small is noise and
+     churning them would only hide the next real one.
+
+     That is a calibration level with the best in WTF's own knot table: sd 17 on
+     the highs and 18 on the lows against the Stevens gauges' 17-20, and on
+     seven and five readings rather than their sixty. Both of this gauge's meridiem traps were in the same
      day, and neither announced itself — the low carried no AM/PM at all and the
      high carried the wrong one, while both wrong readings still left 7/22 with
      one high and one low. Structure could not catch either. Only differencing
@@ -795,9 +815,9 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:151, lo:188, measured:true,
+    lat:29.032633, lng:-80.946983, hi:149, lo:188, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
-    srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
+    srcNote:"WTF gauge 'aquact' lags, re-derived n=7 highs / n=5 lows; heights fitted from Jan's staff readings, n=4 pairs + 1 high" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
      (29.1491/-80.9745), 60 samples, sd 20 min — the same bridge, 90 m from this
      pin. The board had 125/150 by estimate; the measured figures are 90/105, so
