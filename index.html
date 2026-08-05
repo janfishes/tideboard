@@ -591,11 +591,32 @@ const BUILTIN_LOCATIONS = [
      calibration alive in that repo's history:
        { id:'aquact', h:144, l:170, lagKind:'measured', src:'observed',
          branch:'Turnbull Bay' }
-     src:'observed' = Jan timed it on the water against the inlet himself. The
-     lags below are those, kept as they stand: re-deriving them from the five
-     days in Jan's DJM sheet gives LOW +193 min (n=5, sd 21) and HIGH +138 min
-     (n=6, sd 45), which brackets the stored 144/170 but on far less data and,
-     for the highs, on a sheet with an internal contradiction (see below).
+     src:'observed' = Jan timed it on the water against the inlet himself, and
+     the photographed sheet plus his additions IS that record, so the lags are
+     re-derived here rather than inherited. Every observation matched to its own
+     distinct NOAA 8721138 event (see WHICH ROWS ARE REAL, below), 2026-08-05:
+
+       LOW   n=6  mean +190  median +188  sd 21
+             +170 +187 +215 +216 +189 +160   (7/20 through 7/25)
+       HIGH  n=5  mean +154  median +148  sd 38
+             +148 +216 +136 +102 +168        (7/21 through 7/25)
+
+     LOW moved 170 -> 190. Six observations, sd 21 — as tight as WTF's Stevens
+     gauges — and the standard error is about 9 minutes, so the stored 170 sits
+     a bit over two of them below the measured mean. That is a real difference,
+     not scatter.
+
+     HIGH stays at 144. The measured mean is 154 but sd 38 puts the standard
+     error near 17, so 144 is inside the noise and there is nothing to justify
+     moving it; drop the single +216 outlier and the mean falls to 138, i.e. the
+     data cannot tell 138 from 154 and should not pretend to. A high in a
+     shallow bay is a long flat stand and is simply harder to time than the
+     sharp turn at low water — which is the honest reason the two columns differ
+     in quality, and why the sheet records wind alongside every reading.
+
+     Provenance of the rows beyond the two photos: the 7/20 low (11:10 AM, S 10)
+     was supplied by Jan on 2026-08-05 and is not in either photo; the 7/21 low's
+     gusts are his corrected 16 mph, not the 13 shown.
 
      WTF's own comment says Aqua Ct "carries no hs/ho/ls/lo" and was skipped by
      the height-knot list. Jan's sheet has the missing piece: a staff-gauge
@@ -625,7 +646,7 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:144, lo:170, measured:true,
+    lat:29.032633, lng:-80.946983, hi:144, lo:190, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
     srcNote:"WTF gauge 'aquact' lags; heights fitted from Jan's staff readings, n=4" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
