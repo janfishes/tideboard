@@ -472,9 +472,9 @@
     Heights are in feet above <b>MLLW</b> (Mean Lower Low Water) &mdash; the long-term average of each day's lower
     low tide, the zero mark used on U.S. charts. A negative height means water below even that average low.
     <br><br>
-    <b>Depths.</b> The "water now" figures come from NOAA <b>BlueTopo</b> and <b>NCEI CUDEM</b> survey grids,
-    contoured to the foot, plus the tide standing on them. They are measured to <b>NAVD88</b>, which at Ponce
-    sits <b>2.25 ft above MLLW</b> (NOAA station 8721138 datums), and that offset is applied here. They are
+    <b>Depths.</b> The "Depth now" figures come from NOAA <b>BlueTopo</b> and <b>NCEI CUDEM</b> survey grids,
+    contoured to the foot, plus the tide standing on them. Since build 16 those contours are measured to
+    <b>MLLW</b> — the same zero as the tide heights above, and the same one your chartplotter uses. They are
     <b>not chart soundings</b>, the surveys are years old in places, and this coast shoals and moves. Use them to
     find an edge or a hole worth fishing. <b>Read your depth sounder for the water under your boat.</b>
     <br><br>
@@ -558,8 +558,8 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 15;
-const BUILD_STAMP = "2026-08-05";
+const BUILD_NUM = 16;
+const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
    ASTRONOMY — a trimmed SunCalc, inlined.
@@ -680,8 +680,9 @@ const INLET = { lat: 29.077867, lng: -80.908517 };
    a bar into a channel. No amount of interpolation fixes that. A sounding does.
 
    A soundedFt is the depth at MLLW — what a chart would print — so the water is
-   simply soundedFt + the tide, with no NAVD88 conversion in the way (that offset
-   exists only to drag the survey's NAVD88 grid onto the tide's MLLW datum). It
+   simply soundedFt + the tide. Since build 16 the SURVEY is on that same datum
+   too (see the datum note below), so a sounding and the contours are finally
+   comparable without a conversion standing between them. It
    is entered as the depth at DEAD LOW, which is the number anyone actually
    remembers about a spot, and it is per-spot and editable from the same dialog
    as the lag: same idea as calibrating a lag against a real turn, one layer
@@ -692,11 +693,26 @@ const soundedFor = loc => {
   return (u != null && isFinite(u)) ? u : (isFinite(loc.soundedFt) ? loc.soundedFt : null);
 };
 
-/* NOAA station 8721138 published datums, on the station datum:
-     MLLW 2.94 ft, NAVD88 5.19 ft  ->  NAVD88 stands 2.25 ft ABOVE MLLW.
-   The depth grids are NAVD88 and the tide predictions are MLLW, so:
-     water depth = (surveyed depth below NAVD88) + (tide above MLLW) - 2.25 */
-const NAVD88_ABOVE_MLLW = 2.25;
+/* DATUM — changed in build 16 (2026-08-06), and the change was in the DATA.
+   The contour blocks in depth/ are copied from WTF, and through WTF v457 they
+   were cut at integer feet below NAVD88, which stands 2.25 ft ABOVE MLLW here
+   (NOAA station 8721138: MLLW 2.94 ft, NAVD88 5.19 ft on the station datum).
+   This board therefore subtracted 2.25 on every read to get the depth onto the
+   tide's datum.
+
+   WTF v458 re-cut the blocks AT MLLW — each level contoured at label + 2.25 ft
+   below NAVD88 and stored as the label — so the subtraction had to come out in
+   the same change. Leaving it in would have made every depth on this board read
+   2.25 ft SHALLOW, and nothing would have looked obviously broken.
+
+     water depth = (surveyed depth at MLLW) + (tide above MLLW)
+
+   The two apps' blocks must stay in lockstep: re-copy from WTF/depth/ and keep
+   DEPTH_DATA_V equal to WTF's, or the cache-first path serves stale blocks on
+   the old datum forever. The constant is kept below because it is still the
+   right figure for this coast and the next person will want it — but NOTHING in
+   the depth path may use it again. */
+const NAVD88_ABOVE_MLLW = 2.25;   // reference only; not applied to depths
 
 /* Which way the water goes through the inlet. The Ponce channel runs out
    roughly east-southeast past the jetties; the ebb jet carries that heading
@@ -1121,7 +1137,8 @@ function maxRate(events){
    exactly as good as the contour interval and no better, which is why the
    card prints a "~" and a band rather than a decimal.
    --------------------------------------------------------------------- */
-const DEPTH_DATA_V = 4;         // must match the v the blocks were built at
+const DEPTH_DATA_V = 5;         // must match the v the blocks were built at
+                                // 5 = WTF v458's MLLW re-cut; keep equal to WTF's
 const DEPTH_DIR = 'depth/';
 const DEPTH_BLOCKS = [
   ['c3_4',-81.2,29,-81,29.25],     ['c3_5',-81.2,29.25,-81,29.48],
@@ -2131,7 +2148,7 @@ function depthStripHTML(loc, evAll, ds, de){
     // the survey gets a line as a second opinion, never as the headline
     ensureDepth(loc);
     const sv = depthCache.get(loc.key);
-    if(sv) note += ` \u00b7 survey would say ~${(sv.ft - NAVD88_ABOVE_MLLW).toFixed(1)} ft`;
+    if(sv) note += ` \u00b7 survey would say ~${sv.ft.toFixed(1)} ft`;
     bits.push(`<span class="sub">${note}</span>`);
     return `<div class="depth-strip">${bits.join('')}</div>`;
   }
@@ -2168,7 +2185,8 @@ function depthStripHTML(loc, evAll, ds, de){
       ${Math.round(d.nearM/10)*10} m away &mdash; too far to call the depth here.</span></div>`;
   }
   const rough = d.nearM > NEAR_M;
-  const water = tideFt => d.ft + tideFt - NAVD88_ABOVE_MLLW;
+  // The contours are at MLLW since build 16, and so is the tide — no offset.
+  const water = tideFt => d.ft + tideFt;
   /* A depth at or below zero means the survey puts the bottom above that tide —
      print that in words, because "-0.7 ft of water" is not a thing anyone can
      picture. Hedged to "may dry" when the reading is already flagged rough:
@@ -2189,7 +2207,7 @@ function depthStripHTML(loc, evAll, ds, de){
     bits.push(`<span>${fig(water(lo.ft))} at the ${fmtT(lo.time)} low</span>`);
   }
   const band = d.single ? `${d.ft} ft contour` : `between the ${d.lo} and ${d.hi} ft contours`;
-  bits.push(`<span class="sub">${rough ? 'rough &mdash; nearest contour ' + Math.round(d.nearM/10)*10 + ' m away, ' : ''}bottom ~${d.ft.toFixed(1)} ft NAVD88, ${band}</span>`);
+  bits.push(`<span class="sub">${rough ? 'rough &mdash; nearest contour ' + Math.round(d.nearM/10)*10 + ' m away, ' : ''}bottom ~${d.ft.toFixed(1)} ft at low water, ${band}</span>`);
   // Each bit is its OWN span: the strip is a flex row with a 14px gap, and a
   // gap only separates ELEMENTS. Joined as bare strings they ran together into
   // one text node and read "~19.0 ftat 7:15 AM low".
