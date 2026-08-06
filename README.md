@@ -16,10 +16,12 @@ for seven days, shifted upriver by a per-spot lag you can calibrate by watching
 one real turn. A year-plus of official predictions is embedded in the page, so
 the board works with no signal at all.
 
-**Water now.** The surveyed bottom plus the tide standing on it. Depths come
-from the same NOAA BlueTopo / NCEI CUDEM contour blocks the WTF chart draws,
-converted from NAVD88 to actual water using the measured 2.25 ft offset between
-NAVD88 and MLLW at Ponce.
+**Depth now.** The surveyed bottom plus the tide standing on it — water under
+the boat, which is *not* the height in the High/Low table (that one is feet of
+tide above MLLW, and each card says so under the table). Depths come from the
+same NOAA BlueTopo / NCEI CUDEM contour blocks the WTF chart draws, converted
+from NAVD88 to actual water using the measured 2.25 ft offset between NAVD88
+and MLLW at Ponce. A spot with a sounding uses the sounding instead and says so.
 
 **Feeding times.** Solunar majors and minors from moon transit, moonrise and
 moonset, with the phase.

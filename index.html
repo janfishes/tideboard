@@ -135,6 +135,13 @@
   .ev .lbl{font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase}
   .ev .t{font-size:16px;font-weight:700;white-space:nowrap}
   .ev .h{font-size:11px;color:var(--ink-soft);white-space:nowrap}
+  /* The one caption on the card: the tide-height column and the depth strip
+     both print "ft", and a 0.5 ft low read as six inches of water is the
+     dangerous misread. Says which one it is, right under the numbers. */
+  .ev-note{
+    border-top:1px solid var(--hair);padding:4px 10px;
+    font-size:10px;color:var(--ink-soft);letter-spacing:.02em;
+  }
   .ebb-strip{
     background:var(--ebb-soft);border-top:2px solid var(--ebb-line);
     padding:7px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500;
@@ -399,15 +406,19 @@
             <span class="sw" style="background:var(--flood)"></span>Thin gray = incoming (flood). The vertical dashed
             red line is a clock hand: it marks the current time on today's curve, so where it crosses the curve is
             where the tide stands right now. It only appears on Today's view.</dd>
-        <dt>Water now (blue strip)</dt>
+        <dt>Depth now (blue strip)</dt>
         <dd>The depth of water at that spot <b>at this minute</b> &mdash; the surveyed bottom plus the tide
-            standing on it &mdash; and what it falls to at the next low. Read the caution under the board
-            before you trust a number: these are survey depths, not chart soundings.</dd>
+            standing on it &mdash; and what it falls to at the day's lowest low. This is the water under
+            your boat, which is <b>not</b> the number in the High/Low table below it. Read the caution under
+            the board before you trust it: these are survey depths, not chart soundings.</dd>
         <dt>&#9660; Ebbing / &#9650; Flooding</dt>
         <dd>What the water is doing at that spot this minute, and when it turns next. An amber-bordered card
             means that spot is ebbing right now.</dd>
         <dt>High/Low table</dt>
-        <dd>That day's turn times and heights (feet above MLLW) at that spot. "No turns this day" means the
+        <dd>That day's turn times and heights at that spot. A height is feet of tide <b>above MLLW</b>
+            &mdash; how far the water has risen off its own zero, <b>not</b> how much water is under you.
+            A 0.5 ft low does not mean six inches to run in: for that read the blue depth strip.
+            "No turns this day" means the
             highs/lows fall just before midnight or just after &mdash; the neighboring days have them.</dd>
         <dt>Lag line</dt>
         <dd>Upriver spots run behind the inlet. Tap the lag line on any card to adjust its high/low delay after
@@ -547,7 +558,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 14;
+const BUILD_NUM = 15;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -2110,11 +2121,11 @@ function depthStripHTML(loc, evAll, ds, de){
     const now = new Date();
     const tn = activeDay === 0 ? tideAt(evAll, now) : null;
     const bits = [];
-    if(tn) bits.push(`<span>Water now <b>~${(sounded + tn.ft).toFixed(1)} ft</b></span>`);
+    if(tn) bits.push(`<span>Depth now <b>~${(sounded + tn.ft).toFixed(1)} ft</b></span>`);
     const lows = evAll.filter(e => e.type === "L" && e.time >= ds && e.time < de);
     if(lows.length){
       const lo = lows.reduce((a,b) => b.ft < a.ft ? b : a);
-      bits.push(`<span>${fmtT(lo.time)} low <b>~${(sounded + lo.ft).toFixed(1)} ft</b></span>`);
+      bits.push(`<span><b>~${(sounded + lo.ft).toFixed(1)} ft</b> at the ${fmtT(lo.time)} low</span>`);
     }
     let note = `your sounding: ${sounded} ft at dead low`;
     // the survey gets a line as a second opinion, never as the headline
@@ -2165,13 +2176,17 @@ function depthStripHTML(loc, evAll, ds, de){
   const fig = w => w > 0.2 ? `<b>~${w.toFixed(1)} ft</b>`
                            : (rough ? '<b>may dry out</b>' : '<b>dries out</b>');
   if(tn){
-    bits.push(`<span>Water now ${fig(water(tn.ft))}</span>`);
+    /* "Depth now dries out" is not a sentence. When the survey puts the bottom
+       above the present tide the now-line drops the noun and just says so. */
+    const wn = water(tn.ft);
+    bits.push(wn > 0.2 ? `<span>Depth now <b>~${wn.toFixed(1)} ft</b></span>`
+                       : `<span><b>${rough ? 'May be dry now' : 'Dry now'}</b></span>`);
   }
   // the day's lowest low at this spot
   const lows = evAll.filter(e => e.type === "L" && e.time >= ds && e.time < de);
   if(lows.length){
     const lo = lows.reduce((a,b) => b.ft < a.ft ? b : a);
-    bits.push(`<span>${fmtT(lo.time)} low ${fig(water(lo.ft))}</span>`);
+    bits.push(`<span>${fig(water(lo.ft))} at the ${fmtT(lo.time)} low</span>`);
   }
   const band = d.single ? `${d.ft} ft contour` : `between the ${d.lo} and ${d.hi} ft contours`;
   bits.push(`<span class="sub">${rough ? 'rough &mdash; nearest contour ' + Math.round(d.nearM/10)*10 + ' m away, ' : ''}bottom ~${d.ft.toFixed(1)} ft NAVD88, ${band}</span>`);
@@ -2263,6 +2278,7 @@ function render(){
             <div class="h">${e.ft.toFixed(1)} ft</div>
           </div>`).join("") || `<div class="ev"><div class="lbl">No turns this day</div></div>`}
       </div>
+      ${evDay.length ? `<div class="ev-note">tide height, ft above MLLW &mdash; not depth</div>` : ""}
       ${ebbLines.length ? `<div class="ebb-strip">Outgoing: ${ebbLines.join(" &middot; ")}</div>` : ""}
     </div>`;
   }
