@@ -1,2 +1,7 @@
 .DS_Store
 node_modules/
+__pycache__/
+# Raw plotter exports and everything derived from them. The GPX lives in
+# ~/Desktop/Tide Board Files/Garmin Tracks/ — it is boat data, not app source,
+# and a single track is 2.6 MB that every clone would carry forever.
+depth/tracks/

@@ -287,6 +287,63 @@
     font-family:var(--mono);font-size:11px;border:1px dashed var(--ink);background:transparent;
     color:var(--ink);padding:9px 12px;cursor:pointer;border-radius:3px;width:100%;margin-bottom:14px;
   }
+  /* survey — logging your own soundings. Deliberately the plainest thing on
+     the board: it is used one-handed, on the water, in sun, and every control
+     has to be hittable without looking twice. */
+  .surveycard{
+    background:var(--card);border:1px solid var(--hair);border-radius:4px;margin-bottom:14px;overflow:hidden;
+  }
+  /* Title and hint stack rather than sitting side by side: at 390 px the two
+     fight for the same line and both wrap into three. */
+  .surveycard>summary{
+    padding:10px 12px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;cursor:pointer;list-style:none;display:block;
+  }
+  .surveycard>summary::-webkit-details-marker{display:none}
+  .surveycard>summary .hint{
+    display:block;margin-top:3px;font-weight:400;letter-spacing:.04em;text-transform:none;
+    color:var(--ink-soft);font-size:11px;
+  }
+  .sv-body{padding:0 12px 12px;font-size:13px}
+  .sv-gps{
+    font-family:var(--mono);font-size:12px;background:var(--depth-soft);border:1px solid var(--depth);
+    color:var(--depth);border-radius:3px;padding:8px 10px;margin-bottom:10px;line-height:1.5;
+  }
+  .sv-gps .pos{font-size:14px;font-weight:700;white-space:nowrap;display:block}
+  .sv-gps.stale{background:var(--stop-soft);border-color:var(--danger);color:var(--danger)}
+  .sv-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-family:var(--mono);font-size:12px}
+  .sv-row label{flex:1}
+  .sv-row input{
+    width:90px;font-family:var(--mono);font-size:16px;padding:8px;
+    border:1px solid var(--ink);border-radius:2px;background:var(--paper);color:var(--ink);text-align:right;
+  }
+  .sv-row input.wide{width:100%;text-align:left;font-size:14px}
+  .sv-log{
+    width:100%;font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;padding:14px;margin:4px 0 10px;cursor:pointer;
+    border:1px solid var(--ink);border-radius:3px;background:var(--ink);color:var(--paper);
+  }
+  .sv-log:disabled{background:transparent;color:var(--ink-soft);border-color:var(--hair);cursor:default}
+  .sv-read{
+    font-family:var(--mono);font-size:12px;line-height:1.6;border-top:1px solid var(--hair);
+    padding-top:8px;margin-bottom:10px;
+  }
+  .sv-read b{font-size:15px}
+  .sv-read .est{text-transform:uppercase;letter-spacing:.06em;font-size:10px;color:var(--ink-soft)}
+  .sv-tally{border:1px solid var(--hair);border-radius:3px;margin-bottom:10px}
+  .sv-tally .t-row{
+    display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:1px solid var(--hair);
+    font-family:var(--mono);font-size:12px;align-items:baseline;
+  }
+  .sv-tally .t-row:last-child{border-bottom:0}
+  .sv-tally .t-row.head{font-weight:700;background:var(--paper)}
+  .sv-tally .t-row .n{color:var(--ink-soft)}
+  .sv-warn{
+    background:var(--caution-soft);border-left:3px solid var(--caution);padding:8px 10px;
+    font-size:12px;line-height:1.5;color:var(--ink);margin-bottom:10px;
+  }
+  .sv-foot{display:flex;gap:8px;flex-wrap:wrap}
+  .sv-note{font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:10px}
   /* dialogs */
   dialog{
     border:2px solid var(--ink);border-radius:4px;background:var(--card);color:var(--ink);
@@ -423,6 +480,16 @@
         <dt>Lag line</dt>
         <dd>Upriver spots run behind the inlet. Tap the lag line on any card to adjust its high/low delay after
             you've compared a prediction to real water. Saved automatically.</dd>
+        <dt>Survey &mdash; log your own soundings</dt>
+        <dd>Under the cards. Read a depth, tap <b>Log this sounding</b>, and it is reduced to <b>MLLW</b>
+            there and then &mdash; your reading, plus how far the transducer sits below the waterline, minus
+            the tide standing at that position that minute. Two readings on the same hole four hours apart
+            land on the same number; that agreement is the check that it worked. It needs no card and no
+            charted name, so it works on the water you actually fish. The offset is the one to get right:
+            enter the depth as the instrument reads it, and a castable sonar or lead line floats at the
+            surface, so its offset is <b>0</b>. Keel draft is clearance, not depth &mdash; leave it out.
+            Each spot shows a median and a spread; a spread over 3 ft is a slope, not a depth, and the
+            board says so. <b>Copy CSV</b> takes the lot off the phone.</dd>
         <dt>Add a spot</dt>
         <dd>The button under the cards opens the waypoint list from the WTF chart &mdash; every named creek,
             bay, bridge and island from Tomoka Basin down to Mosquito Lagoon. Pick one and it gets a card with an
@@ -455,6 +522,45 @@
       it will not stay sharp if you zoom the page. Imagery by the
       <a href="https://wx.erau.edu/erau_sat/" target="_blank" rel="noopener">Embry-Riddle Aeronautical
       University</a> meteorology department, Daytona Beach, refreshed every 5 minutes.
+    </div>
+  </details>
+
+  <!-- Outside #content for the same reason as the radar card: render() rebuilds
+       that div every minute, which would tear down a live GPS watch and wipe a
+       depth you were halfway through typing. -->
+  <details class="surveycard" id="surveyBox">
+    <summary>Survey &mdash; log your own soundings <span class="hint">any spot, named or not</span></summary>
+    <div class="sv-body">
+      <p class="sv-note" style="margin:0 0 10px">
+        Reduces every reading to <b>MLLW</b> using this spot's own lag and tide height at the minute you log
+        it, so soundings taken at different tides are directly comparable &mdash; and comparable with the
+        survey. Works anywhere, on or off the board.
+      </p>
+      <div class="sv-gps" id="svGps">GPS: waiting for a fix&hellip;</div>
+      <div class="sv-row"><label for="svName">Spot name</label></div>
+      <div class="sv-row"><input type="text" class="wide" id="svName" placeholder="e.g. Crook's Corner hole" autocomplete="off"></div>
+      <div class="sv-row">
+        <label for="svDepth">Depth reading (ft)</label>
+        <input type="number" id="svDepth" step="0.1" min="0" max="200" inputmode="decimal">
+      </div>
+      <div class="sv-row">
+        <label for="svOffset">Transducer below waterline (ft)</label>
+        <input type="number" id="svOffset" step="0.1" min="-5" max="10" inputmode="decimal">
+      </div>
+      <button class="sv-log" id="svLog" disabled>Log this sounding</button>
+      <div class="sv-read" id="svRead"></div>
+      <div id="svTally"></div>
+      <div class="sv-foot">
+        <button class="btn" id="svUndo">Undo last</button>
+        <button class="btn" id="svCopy">Copy CSV</button>
+        <button class="btn" id="svClear">Clear all</button>
+      </div>
+      <div class="sv-note">
+        <b>The offset is the number that will bite you.</b> Enter the depth exactly as the instrument reads
+        it, then say how far the transducer sits below the waterline &mdash; that gets added back. A castable
+        sonar or a lead line floats at the surface, so its offset is <b>0</b>. Keel draft is not part of this:
+        that is clearance, not depth.
+      </div>
     </div>
   </details>
 
@@ -565,7 +671,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 18;
+const BUILD_NUM = 19;
 const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
@@ -2617,8 +2723,352 @@ function showUpdatePill(){
   document.body.appendChild(b);
 }
 
+/* ---------------------------------------------------------------------
+   SURVEY — your own soundings, reduced to MLLW where you take them
+
+   The survey under this water is mostly interpolation: 81% of the BlueTopo
+   cells covering the Halifax are fill rather than measurement, and where green
+   lidar could not see into tannic water it interpolated a deep hole off the
+   bar beside it. That is the whole reason Crook's Corner reads 9 ft wrong. A
+   sounding fixes it, but only if it is reduced properly — a raw reading is
+   worthless six hours later, because it was taken on a tide that has gone.
+
+     depth at MLLW = (reading + transducer depth below waterline) - tide now
+
+   The tide is this position's own: the inlet prediction shifted by the lag
+   here and scaled by the height model here, at the minute of the reading.
+   Two readings on the same hole four hours apart therefore land on the same
+   number, which is the test of whether any of this works.
+
+   IT DELIBERATELY DOES NOT REQUIRE A CARD. Most water worth sounding has no
+   card on this board and no name on the chart, so a survey point carries its
+   own position and whatever name you give it. --------------------------- */
+
+const SURVEY_LS = 'tide-survey';
+let surveyPts = [];
+let svFix = null, svWatch = null;
+
+function surveyLoad(){
+  try{
+    const a = JSON.parse(lsGet(SURVEY_LS) || "[]");
+    surveyPts = Array.isArray(a) ? a : [];
+  }catch(e){ surveyPts = []; }
+}
+const surveySave = () => lsSet(SURVEY_LS, JSON.stringify(surveyPts));
+
+/* Height scaling at an arbitrary position.
+
+   The board itself refuses to guess this — an uncalibrated CARD keeps the
+   inlet's heights and says so, because damping a displayed tide by a guess
+   hides that it is a guess. That is right for a card and wrong here: a
+   sounding taken 3 nm upriver and reduced with the inlet's 2.7 ft swing is
+   wrong by about a foot no matter how carefully it was read. So this DOES
+   interpolate, between the MEASURED anchors only, and every number it touches
+   is labelled est. Interpolating off an estimate would be compounding a guess,
+   which is why estimated spots are not anchors. */
+function estimateScale(lat,lng){
+  const anchors = LOCATIONS
+    .filter(l => l.measured && isFinite(l.hs) && isFinite(l.lat))
+    .map(l => ({ dd: distNm({lat:l.lat,lng:l.lng}, INLET),
+                 hs:l.hs, ho:l.ho, ls:l.ls, lo_:l.lo_ }))
+    .sort((a,b) => a.dd - b.dd);
+  if(!anchors.length) return { hs:1, ho:0, ls:1, lo_:0 };
+  const d = distNm({lat,lng}, INLET);
+  const mix = (a,b,f) => ({ hs:a.hs+(b.hs-a.hs)*f, ho:a.ho+(b.ho-a.ho)*f,
+                            ls:a.ls+(b.ls-a.ls)*f, lo_:a.lo_+(b.lo_-a.lo_)*f });
+  if(d <= anchors[0].dd) return anchors[0];
+  for(let i = 0; i < anchors.length-1; i++){
+    const a = anchors[i], b = anchors[i+1];
+    if(d >= a.dd && d <= b.dd){
+      const span = b.dd - a.dd;
+      return mix(a, b, span > 0 ? (d-a.dd)/span : 0);
+    }
+  }
+  /* Past the furthest anchor the scale is still falling, but extrapolating a
+     ratio runs it to zero and then negative. Hold the last measured value and
+     let the est. label carry the doubt. */
+  return anchors[anchors.length-1];
+}
+
+/* Lag and scale at a position. A CARD within 200 yd wins: it may carry a lag
+   Jan calibrated against a real turn, which beats anything interpolated. */
+function surveyModel(lat,lng){
+  let near = null, nd = Infinity;
+  for(const l of LOCATIONS){
+    if(!isFinite(l.lat)) continue;
+    const d = distNm({lat,lng}, {lat:l.lat,lng:l.lng})*2025.37;   // yards
+    if(d < nd){ nd = d; near = l; }
+  }
+  if(near && nd <= 200){
+    const o = offsets[near.key];
+    const measured = !!(near.measured && isFinite(near.hs));
+    return { hi:o.hi, lo:o.lo,
+             sc: measured ? near : estimateScale(lat,lng),
+             measured, from: near.name, nearYd: nd };
+  }
+  const lag = estimateLag(lat,lng);
+  return { hi:lag.hi, lo:lag.lo, sc: estimateScale(lat,lng),
+           measured:false, from:null, nearYd: nd };
+}
+
+/* Tide height above MLLW at an arbitrary position and instant — shifted() and
+   tideAt() applied to a place with no card. */
+function tideAtPos(lat,lng,t){
+  if(!preds.length) return null;
+  const m = surveyModel(lat,lng);
+  const ev = preds.map(p => {
+    const isH = p.type === "H";
+    return { time: new Date(p.time.getTime() + (isH ? m.hi : m.lo)*60000),
+             ft: isH ? m.sc.hs*p.ft + m.sc.ho : m.sc.ls*p.ft + m.sc.lo_,
+             type: p.type };
+  }).sort((a,b) => a.time - b.time);
+  const at = tideAt(ev, t);
+  return at ? { ft: at.ft, model: m } : null;
+}
+
+/* Reduce one logged point. Kept apart from logging so a stored point can be
+   re-reduced later — if a lag here is calibrated afterwards, every sounding
+   already taken improves, which is the advantage of storing the raw reading
+   and the time rather than only the answer. */
+function surveyReduce(p){
+  const t = new Date(p.t);
+  const toWater = p.reading + (isFinite(p.offset) ? p.offset : 0);
+  const tp = tideAtPos(p.lat, p.lng, t);
+  if(!tp) return { toWater, tide:null, mllw:null, model:null };
+  return { toWater, tide: tp.ft, mllw: toWater - tp.ft, model: tp.model };
+}
+
+const svMedian = a => {
+  const s = a.slice().sort((x,y) => x-y), n = s.length;
+  return n ? (n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2) : null;
+};
+
+/* What to call where you are standing. A CARD on the board wins over a chart
+   waypoint even when the waypoint is nearer, because the card is the thing the
+   reduction is about to quote a lag from — the GPS line saying "Turnbull Creek"
+   while the reading below it says "Crook's Corner's lag" reads like a
+   disagreement, and it is not one. */
+function nearestChartName(lat,lng){
+  let best = null, bd = Infinity;
+  for(const l of LOCATIONS){
+    if(!isFinite(l.lat)) continue;
+    const d = distNm({lat,lng}, {lat:l.lat, lng:l.lng});
+    if(d < bd){ bd = d; best = l.name; }
+  }
+  if(best && bd*2025.37 <= 200) return { name: best, yd: bd*2025.37 };
+  for(const s of WTF_SPOTS){
+    const d = distNm({lat,lng}, {lat:s[1], lng:s[2]});
+    if(d < bd){ bd = d; best = s[0]; }
+  }
+  return best ? { name: best, yd: bd*2025.37 } : null;
+}
+
+function surveyGpsHTML(){
+  const el = document.getElementById('svGps');
+  if(!el) return;
+  if(!svFix){
+    el.className = 'sv-gps stale';
+    el.textContent = 'GPS: no fix yet — open this outdoors and give it a moment.';
+    return;
+  }
+  const age = (Date.now() - svFix.at)/1000;
+  const acc = svFix.acc;
+  el.className = 'sv-gps' + (age > 30 || acc > 30 ? ' stale' : '');
+  const nc = nearestChartName(svFix.lat, svFix.lng);
+  el.innerHTML = `<span class="pos">${fmtDDM(svFix.lat,true)} ${fmtDDM(svFix.lng,false)}</span>`
+    + `&plusmn;${Math.round(acc)} m &middot; ${age < 5 ? 'live' : Math.round(age)+' s old'}`
+    + (nc ? ` &middot; ${esc(nc.name)} ${nc.yd < 1760 ? Math.round(nc.yd)+' yd' : (nc.yd/1760).toFixed(1)+' mi'}` : '');
+}
+
+/* The live reading: what this sounding WOULD reduce to if logged now. Shown
+   before the tap, not after, so a number that looks wrong can be questioned
+   while the boat is still on the spot. */
+function surveyReadHTML(){
+  const el = document.getElementById('svRead');
+  const btn = document.getElementById('svLog');
+  if(!el) return;
+  const depth = parseFloat(document.getElementById('svDepth').value);
+  const off = parseFloat(document.getElementById('svOffset').value);
+  const ready = svFix && isFinite(depth) && depth >= 0 && isFinite(off);
+  btn.disabled = !ready || !preds.length;
+  if(!svFix){ el.innerHTML = ''; return; }
+  if(!preds.length){
+    el.innerHTML = '<span class="est">No tide predictions loaded — a reading logged now '
+      + 'still keeps its position and time and can be reduced later.</span>';
+    return;
+  }
+  if(!isFinite(depth)){ el.innerHTML = '<span class="est">Enter a depth reading.</span>'; return; }
+  const tp = tideAtPos(svFix.lat, svFix.lng, new Date());
+  if(!tp){ el.innerHTML = '<span class="est">Outside the loaded prediction window.</span>'; return; }
+  const toWater = depth + (isFinite(off) ? off : 0);
+  const mllw = toWater - tp.ft;
+  const m = tp.model;
+  const lagTxt = m.from ? `${esc(m.from)}'s lag` : `lag H +${Math.round(m.hi)}m / L +${Math.round(m.lo)}m, est.`;
+  /* The survey comparison, honestly qualified.
+
+     Around Crook's Corner every point for 600 m interpolates between the same
+     two contours, 0 ft and 1 ft — there is no measured structure in that basin
+     at all. Printing "you are +6.2 ft off the survey" there invites reading a
+     disagreement into it, when the truth is the survey has no opinion to
+     disagree with. So how far the nearest contour actually sits is shown, and
+     past 200 m the gap is called what it is: nothing to argue with. */
+  let survey = '';
+  const bk = blockFor(svFix.lat, svFix.lng);
+  if(bk){
+    const d = depthAtPoint(svFix.lat, svFix.lng);
+    if(d && d.nearM <= 600){
+      const diff = mllw - d.ft;
+      const tail = d.nearM > 200
+        ? `<br><span class="est">that far from a contour the survey is filling in, not measuring`
+          + ` &mdash; this gap is not evidence either way</span>`
+        : (Math.abs(diff) >= 3 ? ' &nbsp;<span class="est">worth a second pass</span>' : '');
+      survey = `<br>survey here says ${d.ft.toFixed(1)} ft, off contours `
+        + `${Math.round(d.nearM)} m away &mdash; you are `
+        + `<b>${diff >= 0 ? '+' : ''}${diff.toFixed(1)} ft</b> off it` + tail;
+    } else if(d){
+      survey = `<br><span class="est">nearest surveyed contour is ${Math.round(d.nearM)} m away `
+        + `&mdash; the survey has nothing to say here, which is the best reason to sound it</span>`;
+    }
+  }
+  el.innerHTML =
+    `${toWater.toFixed(1)} ft to the waterline &minus; ${tp.ft.toFixed(2)} ft of tide `
+    + `= <b>${mllw.toFixed(1)} ft at MLLW</b><br>`
+    + `<span class="est">${lagTxt}${m.measured ? '' : ' &middot; height scaling est.'}</span>`
+    + survey;
+}
+
+function surveyTallyHTML(){
+  const el = document.getElementById('svTally');
+  if(!el) return;
+  if(!surveyPts.length){ el.innerHTML = ''; return; }
+  const groups = new Map();
+  for(const p of surveyPts){
+    const k = p.name || '(unnamed)';
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  }
+  let rows = '<div class="sv-tally"><div class="t-row head"><span>Spot</span><span>median at MLLW</span></div>';
+  let anyWide = false;
+  for(const [name, pts] of groups){
+    const red = pts.map(surveyReduce).filter(r => r.mllw !== null).map(r => r.mllw);
+    if(!red.length){
+      rows += `<div class="t-row"><span>${esc(name)} <span class="n">&times;${pts.length}</span></span>`
+            + `<span class="n">not reduced</span></div>`;
+      continue;
+    }
+    const med = svMedian(red), spread = Math.max(...red) - Math.min(...red);
+    if(spread > 3 && red.length > 1) anyWide = true;
+    rows += `<div class="t-row"><span>${esc(name)} <span class="n">&times;${red.length}</span></span>`
+          + `<span><b>${med.toFixed(1)} ft</b>`
+          + (red.length > 1 ? ` <span class="n">&plusmn;${(spread/2).toFixed(1)}</span>` : '')
+          + `</span></div>`;
+  }
+  rows += '</div>';
+  if(anyWide){
+    rows += `<div class="sv-warn"><b>One of these spreads is over 3 ft.</b> That is not one depth &mdash;
+      it is a slope, and no single number describes it. Either you crossed the edge of a hole or a bar, or
+      a reading was taken off bottom. Split it into two spots or throw out the pass.</div>`;
+  }
+  el.innerHTML = rows;
+}
+
+function surveyRender(){ surveyGpsHTML(); surveyReadHTML(); surveyTallyHTML(); }
+
+function surveyCSV(){
+  const head = 'name,time_iso,lat,lng,reading_ft,offset_ft,depth_to_waterline_ft,tide_ft_mllw,depth_ft_mllw\n';
+  return head + surveyPts.map(p => {
+    const r = surveyReduce(p);
+    return [JSON.stringify(p.name || ''), new Date(p.t).toISOString(),
+            p.lat.toFixed(6), p.lng.toFixed(6), p.reading.toFixed(2),
+            (isFinite(p.offset) ? p.offset : 0).toFixed(2), r.toWater.toFixed(2),
+            r.tide === null ? '' : r.tide.toFixed(2),
+            r.mllw === null ? '' : r.mllw.toFixed(2)].join(',');
+  }).join('\n') + '\n';
+}
+
+function surveyStart(){
+  if(svWatch !== null || !navigator.geolocation) return;
+  svWatch = navigator.geolocation.watchPosition(
+    pos => {
+      svFix = { lat: pos.coords.latitude, lng: pos.coords.longitude,
+                acc: pos.coords.accuracy, at: Date.now() };
+      // the depth blocks are lazy — pull the one under the boat so the survey
+      // comparison has something to answer with
+      const bk = blockFor(svFix.lat, svFix.lng);
+      if(bk && !depthBlocks.has(bk)) depthLoadBlock(bk).then(surveyRender);
+      surveyRender();
+    },
+    () => { surveyRender(); },
+    { enableHighAccuracy:true, maximumAge:2000, timeout:20000 });
+}
+function surveyStop(){
+  if(svWatch !== null){ navigator.geolocation.clearWatch(svWatch); svWatch = null; }
+}
+
+function surveyWire(){
+  const box = document.getElementById('surveyBox');
+  box.addEventListener('toggle', () => {
+    if(box.open){ surveyStart(); surveyRender();
+      if(!surveyWire.tick) surveyWire.tick = setInterval(() => { if(box.open) surveyRender(); }, 2000);
+    } else { surveyStop(); }
+  });
+  for(const id of ['svDepth','svOffset']){
+    document.getElementById(id).addEventListener('input', surveyReadHTML);
+  }
+  /* The offset is a property of the boat, not of the reading, so it is
+     remembered — retyping it every time is how a wrong one gets in. */
+  const offEl = document.getElementById('svOffset');
+  offEl.value = lsGet('tide-survey-offset') || '0';
+  offEl.addEventListener('change', () => lsSet('tide-survey-offset', offEl.value));
+
+  document.getElementById('svLog').addEventListener('click', () => {
+    const depth = parseFloat(document.getElementById('svDepth').value);
+    const off = parseFloat(document.getElementById('svOffset').value);
+    if(!svFix || !isFinite(depth)) return;
+    let name = document.getElementById('svName').value.trim();
+    if(!name){
+      const nc = nearestChartName(svFix.lat, svFix.lng);
+      name = nc ? (nc.yd < 200 ? nc.name : nc.name + ' area') : 'Unnamed spot';
+      document.getElementById('svName').value = name;
+    }
+    surveyPts.push({ t: Date.now(), lat: svFix.lat, lng: svFix.lng, acc: svFix.acc,
+                     reading: depth, offset: isFinite(off) ? off : 0, name });
+    surveySave();
+    document.getElementById('svDepth').value = '';
+    surveyRender();
+  });
+  document.getElementById('svUndo').addEventListener('click', () => {
+    if(!surveyPts.length) return;
+    surveyPts.pop(); surveySave(); surveyRender();
+  });
+  document.getElementById('svClear').addEventListener('click', () => {
+    if(!surveyPts.length) return;
+    if(!confirm(`Delete all ${surveyPts.length} logged soundings? Copy the CSV first if you want them.`)) return;
+    surveyPts = []; surveySave(); surveyRender();
+  });
+  document.getElementById('svCopy').addEventListener('click', async () => {
+    if(!surveyPts.length) return;
+    const btn = document.getElementById('svCopy'), csv = surveyCSV();
+    try{
+      await navigator.clipboard.writeText(csv);
+      btn.textContent = `Copied ${surveyPts.length} rows`;
+    }catch(e){
+      /* Clipboard is refused without a secure context or a user gesture the
+         browser believes in. A download always works, and on a phone it lands
+         in Files where it can be mailed to the Mac. */
+      const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'soundings.csv'; a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = 'Downloaded';
+    }
+    setTimeout(() => { btn.textContent = 'Copy CSV'; }, 2500);
+  });
+}
+
 (function(){
   loadPrefs();
+  surveyLoad();
   renderDaynav();
   boot(false);
   updateCheck();
@@ -2634,6 +3084,7 @@ function showUpdatePill(){
       if(preds.length && (!loadWeather.last || Date.now() - loadWeather.last > 900000)) loadWeather();
     }
   });
+  surveyWire();
   radarFrameSetup();
   document.getElementById('radarBox').addEventListener('toggle', e => {
     if(e.target.open && !radarLoaded){ radarLoaded = true; loadRadar(); }

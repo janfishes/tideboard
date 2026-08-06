@@ -4,17 +4,24 @@ Read the board's surveyed depth at a point, outside the browser.
 
 A faithful port of depthAtPoint() in index.html: same blocks, same 1.3 km
 search radius, same interpolate-between-the-two-nearest-contour-levels, same
-NAVD88 -> MLLW offset. It exists so a number on the board can be checked
-against a chart, a plotter or a sounding without opening the app and tapping.
+datum. It exists so a number on the board can be checked against a chart, a
+plotter or a sounding without opening the app and tapping.
 
     python3 tools/depth_at.py 29.0779 -80.9085
     python3 tools/depth_at.py --grid 29.065 29.085 -80.945 -80.905 --step 0.002
     python3 tools/depth_at.py --spots            # every built-in card
 
 Output is depth at MLLW — chart-sounding datum, directly comparable to what a
-chart or a plotter prints. The blocks themselves are NAVD88, which stands
-2.25 ft ABOVE MLLW at Ponce, so that offset is subtracted here exactly as the
-app subtracts it.
+chart or a plotter prints.
+
+DATUM, corrected 2026-08-06: this file was written hours before the app's build
+16 and still subtracted 2.25 ft to get NAVD88 blocks onto MLLW. WTF v458 re-cut
+the blocks AT MLLW and index.html dropped the subtraction in the same change
+("NOTHING in the depth path may use it again") — this tool did not, so every
+depth it printed came out 2.25 ft SHALLOW, which is precisely the failure the
+app's datum note warned would not look obviously broken. The subtraction is
+gone. The constant stays below because it is still the right figure for this
+coast, but nothing here may use it.
 
 The number is only ever as good as the contour interval, and much worse than
 that when the nearest contour is far away — `near` in the output is the
@@ -31,7 +38,7 @@ import math
 DEPTH_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'depth')
 INDEX_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'index.html')
 
-NAVD88_ABOVE_MLLW = 2.25
+NAVD88_ABOVE_MLLW = 2.25   # reference only; NOT applied — see the datum note
 SEARCH_DEG = 0.012          # ~1.3 km, same as the app
 NEAR_M, FAR_M = 200, 600    # the app's confidence bands
 
@@ -91,7 +98,7 @@ def seg_dist(px, py, ax, ay, bx, by, kx):
 
 
 def depth_at(lat, lng):
-    """-> dict(navd88, mllw, lo, hi, near_m, single) or None."""
+    """-> dict(mllw, lo, hi, near_m, single) or None."""
     key = block_for(lat, lng)
     if not key:
         return None
@@ -117,13 +124,12 @@ def depth_at(lat, lng):
     (lv1, d1) = ordered[0]
     deg_m = 111320.0
     if len(ordered) == 1:
-        return {'navd88': float(lv1), 'mllw': lv1 - NAVD88_ABOVE_MLLW,
-                'lo': lv1, 'hi': lv1, 'near_m': d1 * deg_m, 'single': True}
+        return {'mllw': float(lv1), 'lo': lv1, 'hi': lv1,
+                'near_m': d1 * deg_m, 'single': True}
     (lv2, d2) = ordered[1]
     tot = d1 + d2
     ft = lv1 + (lv2 - lv1) * (d1 / tot) if tot > 0 else float(lv1)
-    return {'navd88': ft, 'mllw': ft - NAVD88_ABOVE_MLLW,
-            'lo': min(lv1, lv2), 'hi': max(lv1, lv2),
+    return {'mllw': ft, 'lo': min(lv1, lv2), 'hi': max(lv1, lv2),
             'near_m': d1 * deg_m, 'single': False}
 
 
@@ -141,8 +147,8 @@ def show(lat, lng, label=''):
         print('%-26s %9.5f %10.5f   no contour within 1.3 km' % (label, lat, lng))
         return
     band = ('%d ft line' % d['lo']) if d['single'] else ('%d-%d' % (d['lo'], d['hi']))
-    print('%-26s %9.5f %10.5f  %6.1f ft MLLW  (NAVD88 %5.1f, between %s)  %s'
-          % (label, lat, lng, d['mllw'], d['navd88'], band, flag(d['near_m'])))
+    print('%-26s %9.5f %10.5f  %6.1f ft MLLW  (between %s)  %s'
+          % (label, lat, lng, d['mllw'], band, flag(d['near_m'])))
 
 
 def spots():
