@@ -477,6 +477,10 @@
     <b>MLLW</b> — the same zero as the tide heights above, and the same one your chartplotter uses. They are
     <b>not chart soundings</b>, the surveys are years old in places, and this coast shoals and moves. Use them to
     find an edge or a hole worth fishing. <b>Read your depth sounder for the water under your boat.</b>
+    The shallow water in these grids is mapped by laser from an aircraft, which gets no return through
+    <b>tannic water</b> — so a deep hole can drop out of the survey and be filled in from the bar around it.
+    That is why the survey calls Crook's Corner a drying flat and Jan sounds 8-10 ft there, and it is why a
+    <b>sounding you enter yourself always outranks the survey</b> on these cards.
     <br><br>
     <b>Wind and sea.</b> Wind and wave forecasts are the National Weather Service gridded forecast for the inlet
     (Melbourne office); the wind for the hour around now is the live reading from the <b>New Smyrna Beach
@@ -558,7 +562,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 16;
+const BUILD_NUM = 17;
 const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
@@ -1137,8 +1141,8 @@ function maxRate(events){
    exactly as good as the contour interval and no better, which is why the
    card prints a "~" and a band rather than a decimal.
    --------------------------------------------------------------------- */
-const DEPTH_DATA_V = 5;         // must match the v the blocks were built at
-                                // 5 = WTF v458's MLLW re-cut; keep equal to WTF's
+const DEPTH_DATA_V = 6;         // must match the v the blocks were built at
+                                // 6 = WTF v459's 0 ft drying line; keep equal to WTF's
 const DEPTH_DIR = 'depth/';
 const DEPTH_BLOCKS = [
   ['c3_4',-81.2,29,-81,29.25],     ['c3_5',-81.2,29.25,-81,29.48],
