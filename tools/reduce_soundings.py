@@ -390,6 +390,35 @@ def cluster(rows, radius_yd):
     return out
 
 
+def dedupe(points, seen):
+    """Drop pings already contributed by an earlier file.
+
+    This is not a nicety. Every ACTIVE LOG export is the WHOLE rolling buffer,
+    not the part you have not seen yet, so two exports a month apart overlap by
+    nearly everything they both contain. Reduce both and the overlap counts
+    twice: n doubles, and a median weighted toward whatever the boat did in the
+    shared stretch stops describing the spot.
+
+    Identity is (time, position) -- one ping of the sounder. Depth is
+    deliberately NOT in the key: if the same instant at the same place carries
+    two different depths, that is contradictory data, and silently keeping both
+    is the one outcome with nothing to recommend it.
+    """
+    out = 0
+    keep = []
+    for p in points:
+        if p['t'] is None:
+            keep.append(p)
+            continue
+        k = (p['t'].timestamp(), round(p['lat'], 6), round(p['lng'], 6))
+        if k in seen:
+            out += 1
+            continue
+        seen.add(k)
+        keep.append(p)
+    return keep, out
+
+
 def split_runs(points, gap_min=60):
     """One saved track can hold several outings; a >1 h gap is a new run. Keeps
     a four-month-old track from being averaged into today's."""
@@ -477,17 +506,30 @@ def main(argv):
 
     locs = load_locations()
     tracks, csv_rows, bare_tz = [], [], 0
-    for p in paths:
+    seen, dropped = set(), 0
+    # oldest file first, so the earliest export owns a ping and later
+    # re-exports of the same buffer are the ones trimmed
+    for p in sorted(paths, key=lambda f: os.path.getmtime(f) if os.path.exists(f) else 0):
         if p.lower().endswith('.csv'):
             rows, bare = parse_csv(p)
+            rows, d = dedupe(rows, seen)
+            dropped += d
             for r in rows:
                 r['file'] = os.path.basename(p)
             csv_rows.extend(rows)
             bare_tz += bare
         else:
             for t in parse_tracks(p):
+                t['points'], d = dedupe(t['points'], seen)
+                dropped += d
+                if not t['points']:
+                    continue
                 t['file'] = os.path.basename(p)
                 tracks.append(t)
+    if dropped:
+        print('%d duplicate ping%s dropped — the same time and position seen in an '
+              'earlier file.\n   Expected when exports overlap: each ACTIVE LOG export '
+              'is the whole buffer.' % (dropped, '' if dropped == 1 else 's'))
     if not tracks and not csv_rows:
         print('no tracks or CSV soundings found')
         return 1
