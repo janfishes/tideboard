@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Tide Board — Halifax River &amp; Ponce Inlet</title>
-<meta name="description" content="Tides, water depth, feeding times and inlet run windows for the Halifax River and Ponce de Leon Inlet, Volusia County, Florida.">
+<title>My Tides — Halifax River &amp; Ponce Inlet</title>
+<meta name="description" content="My Tides — tides, water depth, feeding times and inlet run windows for the Halifax River and Ponce de Leon Inlet, Volusia County, Florida.">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0E1F2E">
 <!-- "yes" here and display:standalone in the manifest are ONE decision, and it is made for
@@ -15,9 +15,9 @@
      don't flip these to fix that, it would cost the phone look. -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Tide Board">
+<meta name="apple-mobile-web-app-title" content="My Tides">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%237FC6E8%22/%3E%3Cg fill=%22%23FFFFFF%22%3E%3Ccircle cx=%229%22 cy=%228%22 r=%223.4%22/%3E%3Ccircle cx=%2213%22 cy=%229%22 r=%222.6%22/%3E%3Crect x=%225.6%22 y=%228.6%22 width=%2210%22 height=%223.2%22 rx=%221.6%22/%3E%3C/g%3E%3Cpath d=%22M0 20 Q8 10 16 20 T32 20 L32 32 L0 32 Z%22 fill=%22%23295890%22/%3E%3Cline x1=%220%22 y1=%2217%22 x2=%2232%22 y2=%2217%22 stroke=%22%23D7342A%22 stroke-width=%221.6%22 stroke-dasharray=%223 2.4%22/%3E%3Cpath d=%22M0 20 Q8 10 16 20 T32 20%22 fill=%22none%22 stroke=%22%23E8A317%22 stroke-width=%223%22/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%237FC6E8%22/%3E%3Cg fill=%22%23FFFFFF%22%3E%3Ccircle cx=%229%22 cy=%228%22 r=%223.4%22/%3E%3Ccircle cx=%2213%22 cy=%229%22 r=%222.6%22/%3E%3Crect x=%225.6%22 y=%228.6%22 width=%2210%22 height=%223.2%22 rx=%221.6%22/%3E%3C/g%3E%3Cpath d=%22M0 20 Q8 10 16 20 T32 20 L32 32 L0 32 Z%22 fill=%22%23295890%22/%3E%3Cline x1=%220%22 y1=%2217%22 x2=%2232%22 y2=%2217%22 stroke=%22%23D7342A%22 stroke-width=%221.6%22 stroke-dasharray=%223 2.4%22/%3E%3Cpath d=%22M0 20 Q8 10 16 20 T32 20%22 fill=%22none%22 stroke=%22%23E8A317%22 stroke-width=%224.4%22/%3E%3C/svg%3E">
 <!-- Web fonts are a PROGRESSIVE nicety, never a dependency: they load non-render-blocking
      and the fallback stack below carries the design if the network is gone. Nothing the
      app needs to COMPUTE comes from a CDN any more — see the SunCalc note in the script. -->
@@ -90,24 +90,51 @@
   .card-head{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px 2px;gap:8px}
   .loc-name{font-weight:700;font-size:17px}
   .loc-name .charted{display:block;font-family:var(--mono);font-size:10px;font-weight:400;color:var(--ink-soft);letter-spacing:.04em;text-transform:uppercase}
+  /* GPS position, under the charted name. Mono and non-wrapping: a coordinate
+     broken across two lines is a coordinate you can mistype into a plotter. */
+  .loc-name .coords{display:block;font-family:var(--mono);font-size:10px;font-weight:400;
+    color:var(--ink-soft);letter-spacing:.02em}
+  .loc-name .coords .pos{white-space:nowrap}
+  .loc-name .coords .caveat{text-transform:uppercase;letter-spacing:.04em;opacity:.85}
   .state{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
   .state.ebb{color:var(--ebb)}
   .state.flood{color:var(--flood)}
   .offset-chip{
     font-family:var(--mono);font-size:10px;color:var(--ink-soft);
-    padding:0 12px 6px;cursor:pointer;text-decoration:underline dotted;
+    padding:0 12px 6px;cursor:pointer;
     background:none;border:0;text-align:left;display:block;width:100%;
   }
+  /* Lag on the left, the tap target hard right on the SAME line; the height
+     model drops to its own line underneath. Three facts stacked as one
+     paragraph read as one sentence and the tap target hid at the end of it. */
+  .offset-chip .offrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .offset-chip .adj{text-decoration:underline dotted;white-space:nowrap;flex:none}
+  .offset-chip .offsub{display:block;margin-top:1px}
   .curve{display:block;width:100%;max-width:100%;height:64px;min-height:64px}
-  .events{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--hair)}
+  /* ONE ROW, always. The day's four turns wrapped to two rows on a phone
+     (min-width:120px against a ~360px card), which split a single day's tide
+     into what looked like two groups. nowrap + flex-basis 0 + min-width 0 lets
+     the four columns divide whatever width there is; the type steps down at
+     narrow widths instead of the row breaking. */
+  .events{display:flex;flex-wrap:nowrap;gap:0;border-top:1px solid var(--hair)}
   .ev{
-    flex:1 1 25%;min-width:120px;padding:8px 12px;border-right:1px solid var(--hair);
+    flex:1 1 0;min-width:0;padding:8px 10px;border-right:1px solid var(--hair);
     font-family:var(--mono);
+  }
+  @media (max-width:430px){
+    .ev{padding:7px 7px}
+    .ev .lbl{font-size:9px;letter-spacing:.06em}
+    .ev .t{font-size:14px}
+    .ev .h{font-size:10px}
+  }
+  @media (max-width:340px){
+    .ev{padding:6px 5px}
+    .ev .t{font-size:12.5px}
   }
   .ev:last-child{border-right:none}
   .ev .lbl{font-size:10px;letter-spacing:.1em;color:var(--ink-soft);text-transform:uppercase}
-  .ev .t{font-size:16px;font-weight:700}
-  .ev .h{font-size:11px;color:var(--ink-soft)}
+  .ev .t{font-size:16px;font-weight:700;white-space:nowrap}
+  .ev .h{font-size:11px;color:var(--ink-soft);white-space:nowrap}
   .ebb-strip{
     background:var(--ebb-soft);border-top:2px solid var(--ebb-line);
     padding:7px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500;
@@ -288,6 +315,11 @@
   .spotrow:last-child{border-bottom:0}
   .spotrow:hover,.spotrow:focus{background:var(--shoal)}
   .spotrow .k{font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;white-space:nowrap}
+  .spot-sect{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);background:var(--shoal);padding:6px 10px;
+    border-bottom:1px solid var(--hair);position:sticky;top:0;
+  }
   .updatepill{
     position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));
     background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;
@@ -311,10 +343,10 @@
           <g fill="#fff"><circle cx="9" cy="8" r="3.4"/><circle cx="13" cy="9" r="2.6"/><rect x="5.6" y="8.6" width="10" height="3.2" rx="1.6"/></g>
           <path d="M0 20 Q8 10 16 20 T32 20 L32 32 L0 32 Z" fill="#295890"/>
           <line x1="0" y1="17" x2="32" y2="17" stroke="#D7342A" stroke-width="1.6" stroke-dasharray="3 2.4"/>
-          <path d="M0 20 Q8 10 16 20 T32 20" fill="none" stroke="#E8A317" stroke-width="3"/>
+          <path d="M0 20 Q8 10 16 20 T32 20" fill="none" stroke="#E8A317" stroke-width="4.4"/>
         </g>
         <rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="none" stroke="rgba(21,42,59,.4)"/>
-      </svg><span>TIDE BOARD <span class="thin">&mdash; Ponce Inlet &amp; upriver</span></span></h1>
+      </svg><span>MY TIDES <span class="thin">&mdash; Ponce Inlet &amp; upriver</span></span></h1>
     <div class="station-line" id="stationLine">NOAA station: connecting&hellip;</div>
   </header>
 
@@ -384,6 +416,11 @@
         <dd>The button under the cards opens the waypoint list from the WTF chart &mdash; every named creek,
             bay, bridge and island from Tomoka Basin down to Mosquito Lagoon. Pick one and it gets a card with an
             <b>estimated</b> lag worked out from how far it sits from the inlet. Calibrate it the same way as the rest.</dd>
+        <dt>Remove a card</dt>
+        <dd>Any card can come off the board: tap its lag line and use <b>Remove card</b>. The built-in ones are
+            only hidden &mdash; their lag, sounding and calibration are kept, and they come back from
+            <b>Removed cards</b> at the top of the Add-a-spot list. A spot you added yourself is deleted outright,
+            but the waypoint list can always make it again.</dd>
       </dl>
     </div>
   </details>
@@ -510,7 +547,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 13;
+const BUILD_NUM = 14;
 const BUILD_STAMP = "2026-08-05";
 
 /* ---------------------------------------------------------------------
@@ -679,8 +716,35 @@ const BUILTIN_LOCATIONS = [
     hs:1, ho:0, ls:1, lo_:0, measured:true },
   { key:"threebr",   name:"Three Bridges",           charted:"Halifax River at the three spans",
     lat:29.086350, lng:-80.968633, hi:75,  lo:90,  est:true },
-  { key:"trestle",   name:"Train Trestle",           charted:"Strickland Bay train trestle",
-    lat:29.080083, lng:-80.983483, hi:105, lo:120, est:true },
+  /* TWO trestles, and this one was carrying the wrong name. The card shipped as
+     "Strickland Bay train trestle", inherited from WTF's pin of that name — but
+     Jan (2026-08-05) calls this crossing the SPRUCE CREEK trestle and gave its
+     position as 29°04.803'N 080°58.997'W. That lands 19 m from the FEC railroad
+     bridge OSM maps at 29.080108/-80.983479, so it is the same structure under a
+     different name, and Jan's name is the one that gets used on the water. It
+     sits right where Spruce Creek opens into Strickland Bay, which is how one
+     crossing came to be called both. WTF carries the old name too and should be
+     corrected there as well. */
+  { key:"trestle",   name:"Spruce Creek Trestle",    charted:"FEC railroad, Spruce Creek",
+    lat:29.080050, lng:-80.983283, hi:105, lo:120, est:true },
+  /* The trestle that was missing entirely. Position from Jan, 29°03.042'N
+     080°57.579'W, 12 m off the railroad bridge OSM maps at 29.050726/-80.959770
+     — and it is a SEPARATE structure from the Turnbull Bay ROAD bridge 46 m
+     north of it (29.05116/-80.95986), which is what WTF's "Turnbull Bay Bridge"
+     pin has always been.
+
+     LAG IS ESTIMATED ALONG THE WATER, not by estimateLag(). That function
+     interpolates on straight-line distance from the inlet, which breaks down
+     here: DJM sits 3.38 nm out at +188 while Three Bridges sits 3.19 nm out at
+     +90, because they are on different branches. Run on this trestle it returns
+     74/88 — inlet-side numbers for a spot well up Turnbull Bay. So these are
+     interpolated between the two anchors actually on this path: Three Bridges
+     (+75/+90) about 2.2 nm down-bay, and Crook's Corner (+120/+140) about 0.5 nm
+     up-bay, which puts it ~82% of the way to Crook's: +112/+131, rounded. Both
+     anchors are themselves estimates, so this is an estimate of an estimate —
+     est:true, and worth a real timing the first time Jan is sitting there. */
+  { key:"tbtrestle", name:"Turnbull Bay Trestle",    charted:"FEC railroad, Turnbull Bay",
+    lat:29.050700, lng:-80.959650, hi:110, lo:130, est:true },
   /* Crook's Corner and DJM are Jan's own names — neither is on a chart or in
      GNIS, so there was nothing to look them up in and they shipped without a
      position. Positions supplied by Jan 2026-08-05, converted from the
@@ -815,7 +879,7 @@ const BUILTIN_LOCATIONS = [
      Position is the sheet's own header, 29 01.958 / 080 56.819, about 15 m from
      the figure Jan gave verbally. */
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
-    lat:29.032633, lng:-80.946983, hi:149, lo:188, measured:true,
+    lat:29.032633, lng:-80.946983, gauge:true, hi:149, lo:188, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
     srcNote:"WTF gauge 'aquact' lags, re-derived n=7 highs / n=5 lows; heights fitted from Jan's staff readings, n=4 pairs + 1 high" },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
@@ -833,7 +897,7 @@ const BUILTIN_LOCATIONS = [
    Mosquito Lagoon: [name, lat, lng, kind]. Extracted from WTF's SPOTS table,
    which is itself named from the USGS GNIS gazetteer — the same gazetteer the
    topo imagery labels itself from, so a name here matches the chart. */
-const WTF_SPOTS = [["Smith Creek",29.421817,-81.106433,"Creek"],["Bulow Creek",29.414013,-81.125044,"Creek"],["High Bridge",29.40855,-81.100983,"Bridge"],["Halifax Creek",29.384183,-81.089183,"Creek"],["Tiger Hammock",29.381089,-81.097558,"Island"],["Bryan Island",29.3697,-81.097002,"Island"],["Tomoka Basin",29.359567,-81.091883,"Basin"],["Tomoka River",29.338427,-81.087635,"River"],["Strickland Creek",29.317633,-81.079002,"Creek"],["Ormond Beach (City)",29.2955,-81.0555,"City"],["Granada Bridge",29.287317,-81.051383,"Bridge"],["Holly Hill (City)",29.245,-81.033,"City"],["Mason Ave Bridge N",29.231867,-81.021383,"Bridge"],["Mason Ave Bridge S",29.230517,-81.020733,"Bridge"],["Loggerhead Marina",29.225981,-81.022883,"Marina"],["Main St Bridge",29.223283,-81.016967,"Bridge"],["International Speedway Bridge",29.216217,-81.01555,"Bridge"],["Orange Ave Bridge",29.21145,-81.01035,"Bridge"],["Daytona Beach (City)",29.21,-81.009,"City"],["Halifax River Yacht Club",29.20745,-81.014564,"Yacht club marina"],["Halifax River N",29.1849,-80.998083,"River"],["South Daytona (City)",29.166,-80.991,"City"],["Pelican Island",29.156372,-80.982832,"Island"],["Seven Seas Marina",29.154869,-80.97494,"Marina"],["Daytona Beach Shores (City)",29.153,-80.9833,"City"],["Dunlawton Bridge",29.148333,-80.975317,"Bridge"],["Port Orange (City)",29.1406,-80.9779,"City"],["Adventure Yacht Harbor",29.132009,-80.961829,"Marina"],["Wilbur Bay",29.121892,-80.956986,"Bay"],["Fozzard Creek",29.121343,-80.969373,"Creek"],["Mill Creek NE",29.1136,-80.961083,"Creek"],["Mill Creek SW",29.11,-80.96615,"Creek"],["Tenmile Creek NE",29.1098,-80.95785,"Creek"],["Harbor Oaks (City)",29.1055,-80.9688,"City"],["Daggett Island",29.104984,-80.950054,"Island"],["Rose Bay NW",29.104867,-80.977433,"Bay"],["Dead End Creek",29.104428,-80.952832,"Creek"],["Rose Bay Bridge",29.103667,-80.97185,"Bridge"],["Harbour Village Marina",29.10175,-80.947098,"Marina"],["Tenmile Creek SW",29.100983,-80.959967,"Creek"],["Rose Bay",29.099722,-80.965697,"Bay"],["Live Oak Creek",29.096651,-80.946443,"Creek"],["Live Oak Point",29.093873,-80.946443,"Point"],["Lost Creek",29.09304,-80.954776,"Creek"],["Ponce Inlet (Town)",29.092,-80.948,"City"],["Inlet Harbor Marina",29.091649,-80.938758,"Marina"],["Spruce Creek NW",29.09145,-81.02005,"Creek"],["Halifax River",29.09,-80.9403,"River"],["Three Bridges NW",29.088617,-80.969867,"Bridge"],["Spruce Creek Mouth",29.08775,-80.950944,"Creek"],["Piddler Island",29.087207,-80.940054,"Island"],["Three Bridges S",29.08635,-80.968633,"Bridge"],["Blind Spruce Creek",29.086049,-80.944039,"Creek"],["Three Bridges SE",29.084033,-80.967117,"Bridge"],["Sea Love Marina",29.082341,-80.935118,"Marina"],["Murray Creek",29.081929,-80.956721,"Creek"],["Tata Island",29.081685,-80.939863,"Island"],["Strickland Bay",29.0812,-80.9798,"Bay"],["Strickland Bay Train Trestle",29.080083,-80.983483,"Train trestle"],["Lighthouse Boatyard",29.079152,-80.927267,"Marina & boatyard"],["Ponce de Leon Inlet",29.077867,-80.908517,"Inlet"],["Braddock Creek",29.077762,-80.932832,"Creek"],["Turnbull Bay N",29.07705,-80.9682,"Bay"],["New Smyrna Beach South Jetty",29.0736,-80.912075,"Jetty"],["Ramsey Pass",29.073018,-80.928475,"Pass"],["Spruce Creek SE",29.072383,-80.991917,"Creek"],["Redland Canal",29.071651,-80.945054,"Canal"],["Ponce de Leon Cut",29.069985,-80.939221,"Cut"],["Disappearing Island",29.069288,-80.927869,"Island"],["Bass Flats",29.064707,-80.924498,"Flats"],["Rockhouse Creek",29.064429,-80.927832,"Creek"],["Smyrna Creek",29.057763,-80.928109,"Creek"],["Hunter Creek",29.054985,-80.928665,"Creek"],["Turnbull Bay S",29.053333,-80.960867,"Bay"],["Turnbull Bay Bridge",29.051217,-80.9598,"Bridge"],["Indian River North",29.05,-80.9098,"River"],["Inlet Creek",29.04943,-80.92172,"Creek"],["Cook Creek",29.048041,-80.90922,"Creek"],["Turnbull Creek",29.04755,-80.9586,"Creek"],["NSB North Causeway Bridge",29.038667,-80.906017,"Bridge"],["Aqua Ct",29.032683,-80.947067,"Inshore spot"],["New Smyrna Marina",29.032108,-80.913696,"Marina"],["Chicken Island",29.029985,-80.912554,"Island"],["Sheephead Cut",29.029152,-80.910331,"Cut"],["Anglers Yacht Club",29.028403,-80.920854,"Yacht club marina"],["NSB South Causeway Bridge",29.023583,-80.917483,"Bridge"],["Callalisa Creek",29.01855,-80.90375,"Creek"],["Smyrna Yacht Club",29.012753,-80.914124,"Yacht club marina"],["Big Cove",29.012653,-80.899208,"Cove"],["New Smyrna Beach (City)",29.01,-80.91,"City"],["Big Snapper Cut",29.003875,-80.89672,"Cut"],["Browns Bay",29.00185,-80.891267,"Bay"],["Little Snapper Cut",29.001375,-80.895609,"Cut"],["Snake Creek",28.99859,-80.886897,"Creek"],["Pine Island Bay",28.991066,-80.8871,"Bay"],["Sand Point",28.988875,-80.896998,"Point"],["Potts Creek",28.987307,-80.888861,"Creek"],["Webster Creek",28.983947,-80.873853,"Creek"],["Elwinder Creek",28.975705,-80.885659,"Creek"],["Edgewater (City)",28.9747,-80.8883,"City"],["Botheration Creek",28.972075,-80.871758,"Creek"],["Bottle Island",28.970265,-80.869219,"Island"],["Three Sisters Islands",28.96582,-80.871164,"Islands"],["Bottle Island Creek",28.964318,-80.869356,"Creek"],["Fox Slip",28.957817,-80.86725,"Bay"],["Oyster Bay",28.957466,-80.861376,"Bay"],["Cedar Creek",28.955222,-80.854979,"Creek"],["Cedar Island",28.948321,-80.848664,"Island"],["Shipyard Canal",28.944987,-80.848386,"Canal"],["Turner Flats",28.943541,-80.840422,"Flats"],["Blue Hole",28.93615,-80.86655,"Hole"],["Shipyard Island",28.928599,-80.838386,"Island"],["Brickhouse Cove",28.923217,-80.860917,"Cove"],["Orange Island Creek",28.915393,-80.832488,"Creek"],["Bittersweet Cove",28.913701,-80.859628,"Cove"],["Orange Island",28.912488,-80.830608,"Island"],["Pumpkin Point",28.905266,-80.820052,"Point"],["Bissitte Bay",28.897717,-80.846133,"Bay"],["Slippery Creek",28.895071,-80.837035,"Creek"],["Gaines Island",28.890822,-80.826163,"Island"],["Gaines Slough",28.885847,-80.821168,"Slough"],["Oak Hill (City)",28.88,-80.835,"City"],["East Channel",28.874989,-80.799218,"Channel"],["Plantation Island",28.871933,-80.800885,"Island"],["Middle Island",28.859434,-80.79644,"Island"],["Georges Slough",28.844561,-80.772887,"Slough"],["Glory Hole",28.819832,-80.762364,"Hole"],["Bird Island",28.813601,-80.77394,"Island"],["Cat Hammock",28.81249,-80.751717,"Island"],["Tiger Shoal",28.812212,-80.785051,"Shoal"],["Vanns Slough",28.811676,-80.76266,"Slough"],["Vanns Island",28.810824,-80.764773,"Island"],["Mosquito Lagoon",28.804981,-80.768484,"Lagoon"],["Coot Creek",28.801935,-80.853387,"Creek"],["Turnbull Creek Mosquito Lagoon W",28.798324,-80.850331,"Creek"],["Preachers Island",28.798324,-80.758106,"Island"]];
+const WTF_SPOTS = [["Smith Creek",29.421817,-81.106433,"Creek"],["Bulow Creek",29.414013,-81.125044,"Creek"],["High Bridge",29.40855,-81.100983,"Bridge"],["Halifax Creek",29.384183,-81.089183,"Creek"],["Tiger Hammock",29.381089,-81.097558,"Island"],["Bryan Island",29.3697,-81.097002,"Island"],["Tomoka Basin",29.359567,-81.091883,"Basin"],["Tomoka River",29.338427,-81.087635,"River"],["Strickland Creek",29.317633,-81.079002,"Creek"],["Ormond Beach (City)",29.2955,-81.0555,"City"],["Granada Bridge",29.287317,-81.051383,"Bridge"],["Holly Hill (City)",29.245,-81.033,"City"],["Mason Ave Bridge N",29.231867,-81.021383,"Bridge"],["Mason Ave Bridge S",29.230517,-81.020733,"Bridge"],["Loggerhead Marina",29.225981,-81.022883,"Marina"],["Main St Bridge",29.223283,-81.016967,"Bridge"],["International Speedway Bridge",29.216217,-81.01555,"Bridge"],["Orange Ave Bridge",29.21145,-81.01035,"Bridge"],["Daytona Beach (City)",29.21,-81.009,"City"],["Halifax River Yacht Club",29.20745,-81.014564,"Yacht club marina"],["Halifax River N",29.1849,-80.998083,"River"],["South Daytona (City)",29.166,-80.991,"City"],["Pelican Island",29.156372,-80.982832,"Island"],["Seven Seas Marina",29.154869,-80.97494,"Marina"],["Daytona Beach Shores (City)",29.153,-80.9833,"City"],["Dunlawton Bridge",29.148333,-80.975317,"Bridge"],["Port Orange (City)",29.1406,-80.9779,"City"],["Adventure Yacht Harbor",29.132009,-80.961829,"Marina"],["Wilbur Bay",29.121892,-80.956986,"Bay"],["Fozzard Creek",29.121343,-80.969373,"Creek"],["Mill Creek NE",29.1136,-80.961083,"Creek"],["Mill Creek SW",29.11,-80.96615,"Creek"],["Tenmile Creek NE",29.1098,-80.95785,"Creek"],["Harbor Oaks (City)",29.1055,-80.9688,"City"],["Daggett Island",29.104984,-80.950054,"Island"],["Rose Bay NW",29.104867,-80.977433,"Bay"],["Dead End Creek",29.104428,-80.952832,"Creek"],["Rose Bay Bridge",29.103667,-80.97185,"Bridge"],["Harbour Village Marina",29.10175,-80.947098,"Marina"],["Tenmile Creek SW",29.100983,-80.959967,"Creek"],["Rose Bay",29.099722,-80.965697,"Bay"],["Live Oak Creek",29.096651,-80.946443,"Creek"],["Live Oak Point",29.093873,-80.946443,"Point"],["Lost Creek",29.09304,-80.954776,"Creek"],["Ponce Inlet (Town)",29.092,-80.948,"City"],["Inlet Harbor Marina",29.091649,-80.938758,"Marina"],["Spruce Creek NW",29.09145,-81.02005,"Creek"],["Halifax River",29.09,-80.9403,"River"],["Three Bridges NW",29.088617,-80.969867,"Bridge"],["Spruce Creek Mouth",29.08775,-80.950944,"Creek"],["Piddler Island",29.087207,-80.940054,"Island"],["Three Bridges S",29.08635,-80.968633,"Bridge"],["Blind Spruce Creek",29.086049,-80.944039,"Creek"],["Three Bridges SE",29.084033,-80.967117,"Bridge"],["Sea Love Marina",29.082341,-80.935118,"Marina"],["Murray Creek",29.081929,-80.956721,"Creek"],["Tata Island",29.081685,-80.939863,"Island"],["Strickland Bay",29.0812,-80.9798,"Bay"],["Spruce Creek Train Trestle",29.080050,-80.983283,"Train trestle"],["Lighthouse Boatyard",29.079152,-80.927267,"Marina & boatyard"],["Ponce de Leon Inlet",29.077867,-80.908517,"Inlet"],["Braddock Creek",29.077762,-80.932832,"Creek"],["Turnbull Bay N",29.07705,-80.9682,"Bay"],["New Smyrna Beach South Jetty",29.0736,-80.912075,"Jetty"],["Ramsey Pass",29.073018,-80.928475,"Pass"],["Spruce Creek SE",29.072383,-80.991917,"Creek"],["Redland Canal",29.071651,-80.945054,"Canal"],["Ponce de Leon Cut",29.069985,-80.939221,"Cut"],["Disappearing Island",29.069288,-80.927869,"Island"],["Bass Flats",29.064707,-80.924498,"Flats"],["Rockhouse Creek",29.064429,-80.927832,"Creek"],["Smyrna Creek",29.057763,-80.928109,"Creek"],["Hunter Creek",29.054985,-80.928665,"Creek"],["Turnbull Bay S",29.053333,-80.960867,"Bay"],["Turnbull Bay Bridge",29.051217,-80.9598,"Bridge"],["Turnbull Bay Train Trestle",29.050700,-80.959650,"Train trestle"],["Indian River North",29.05,-80.9098,"River"],["Inlet Creek",29.04943,-80.92172,"Creek"],["Cook Creek",29.048041,-80.90922,"Creek"],["Turnbull Creek",29.04755,-80.9586,"Creek"],["NSB North Causeway Bridge",29.038667,-80.906017,"Bridge"],["Aqua Ct",29.032683,-80.947067,"Inshore spot"],["New Smyrna Marina",29.032108,-80.913696,"Marina"],["Chicken Island",29.029985,-80.912554,"Island"],["Sheephead Cut",29.029152,-80.910331,"Cut"],["Anglers Yacht Club",29.028403,-80.920854,"Yacht club marina"],["NSB South Causeway Bridge",29.023583,-80.917483,"Bridge"],["Callalisa Creek",29.01855,-80.90375,"Creek"],["Smyrna Yacht Club",29.012753,-80.914124,"Yacht club marina"],["Big Cove",29.012653,-80.899208,"Cove"],["New Smyrna Beach (City)",29.01,-80.91,"City"],["Big Snapper Cut",29.003875,-80.89672,"Cut"],["Browns Bay",29.00185,-80.891267,"Bay"],["Little Snapper Cut",29.001375,-80.895609,"Cut"],["Snake Creek",28.99859,-80.886897,"Creek"],["Pine Island Bay",28.991066,-80.8871,"Bay"],["Sand Point",28.988875,-80.896998,"Point"],["Potts Creek",28.987307,-80.888861,"Creek"],["Webster Creek",28.983947,-80.873853,"Creek"],["Elwinder Creek",28.975705,-80.885659,"Creek"],["Edgewater (City)",28.9747,-80.8883,"City"],["Botheration Creek",28.972075,-80.871758,"Creek"],["Bottle Island",28.970265,-80.869219,"Island"],["Three Sisters Islands",28.96582,-80.871164,"Islands"],["Bottle Island Creek",28.964318,-80.869356,"Creek"],["Fox Slip",28.957817,-80.86725,"Bay"],["Oyster Bay",28.957466,-80.861376,"Bay"],["Cedar Creek",28.955222,-80.854979,"Creek"],["Cedar Island",28.948321,-80.848664,"Island"],["Shipyard Canal",28.944987,-80.848386,"Canal"],["Turner Flats",28.943541,-80.840422,"Flats"],["Blue Hole",28.93615,-80.86655,"Hole"],["Shipyard Island",28.928599,-80.838386,"Island"],["Brickhouse Cove",28.923217,-80.860917,"Cove"],["Orange Island Creek",28.915393,-80.832488,"Creek"],["Bittersweet Cove",28.913701,-80.859628,"Cove"],["Orange Island",28.912488,-80.830608,"Island"],["Pumpkin Point",28.905266,-80.820052,"Point"],["Bissitte Bay",28.897717,-80.846133,"Bay"],["Slippery Creek",28.895071,-80.837035,"Creek"],["Gaines Island",28.890822,-80.826163,"Island"],["Gaines Slough",28.885847,-80.821168,"Slough"],["Oak Hill (City)",28.88,-80.835,"City"],["East Channel",28.874989,-80.799218,"Channel"],["Plantation Island",28.871933,-80.800885,"Island"],["Middle Island",28.859434,-80.79644,"Island"],["Georges Slough",28.844561,-80.772887,"Slough"],["Glory Hole",28.819832,-80.762364,"Hole"],["Bird Island",28.813601,-80.77394,"Island"],["Cat Hammock",28.81249,-80.751717,"Island"],["Tiger Shoal",28.812212,-80.785051,"Shoal"],["Vanns Slough",28.811676,-80.76266,"Slough"],["Vanns Island",28.810824,-80.764773,"Island"],["Mosquito Lagoon",28.804981,-80.768484,"Lagoon"],["Coot Creek",28.801935,-80.853387,"Creek"],["Turnbull Creek Mosquito Lagoon W",28.798324,-80.850331,"Creek"],["Preachers Island",28.798324,-80.758106,"Island"]];
 
 /* ---------------------------------------------------------------------
    STATE
@@ -843,6 +907,14 @@ let offsets   = {};          // key -> {hi,lo}
 let userPos   = {};          // key -> {lat,lng}   (positions set by hand)
 let userSounded = {};        // key -> ft at MLLW  (depths actually seen)
 let addedSpots = [];         // [{key,name,charted,lat,lng,hi,lo}]
+/* Built-in cards Jan has taken off the board. HIDDEN, not deleted, and they stay
+   in LOCATIONS: estimateLag() interpolates against every located card, several
+   of the built-ins are the only measured anchors there are (DJM, Dunlawton), and
+   dropping one out of the array would quietly move the estimate for every spot
+   added afterwards. So the hiding happens at RENDER, one filter, and nothing
+   that computes ever sees the difference. Their lags and soundings survive too,
+   so putting a card back restores the calibration and not just the name. */
+let hiddenKeys = [];         // ['trestle', ...] built-in keys not shown
 let preds     = [];          // [{time:Date, ft:Number, type:'H'|'L'}]
 let activeDay = 0;
 let stationUsed = null;
@@ -850,7 +922,7 @@ let peakEbbKt = PEAK_EBB_KT_DEFAULT;
 
 const LS = {
   lags:'tide-lags', pos:'tide-positions', added:'tide-added-spots', ebb:'tide-peak-ebb',
-  sounded:'tide-sounded'
+  sounded:'tide-sounded', hidden:'tide-hidden'
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -876,6 +948,10 @@ function loadPrefs(){
     const raw = lsGet(LS.sounded);
     if(raw) userSounded = JSON.parse(raw) || {};
   }catch(e){ userSounded = {}; }
+  try{
+    const raw = JSON.parse(lsGet(LS.hidden) || "[]");
+    hiddenKeys = Array.isArray(raw) ? raw.filter(k => typeof k === "string") : [];
+  }catch(e){ hiddenKeys = []; }
   const pe = parseFloat(lsGet(LS.ebb));
   if(pe > 0.4 && pe < 9) peakEbbKt = pe;
 
@@ -889,6 +965,8 @@ const saveOffsets = () => lsSet(LS.lags,  JSON.stringify(offsets));
 const savePos     = () => lsSet(LS.pos,   JSON.stringify(userPos));
 const saveAdded   = () => lsSet(LS.added, JSON.stringify(addedSpots));
 const saveSounded = () => lsSet(LS.sounded, JSON.stringify(userSounded));
+const saveHidden  = () => lsSet(LS.hidden, JSON.stringify(hiddenKeys));
+const isHidden    = key => hiddenKeys.indexOf(key) !== -1;
 
 /* ---------------------------------------------------------------------
    NOAA TIDE PREDICTIONS
@@ -2108,13 +2186,33 @@ function depthStripHTML(loc, evAll, ds, de){
    --------------------------------------------------------------------- */
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* Degrees + decimal MINUTES, not decimal degrees: that is what a boat plotter
+   and a handheld both want typed in, and it is the form Jan gives positions in.
+   Longitude keeps three degree digits so 080 lines up the way a chart writes it.
+
+   The gauge caveat is the standing rule made visible. DJM's position is a TIDE
+   GAUGE on a residential canal — good for interpolating a tide, never a place
+   to steer to — so the one card whose coordinate is a gauge says so on the same
+   line as the number, where it cannot be read separately from it. */
+function fmtDDM(v, isLat){
+  const hemi = isLat ? (v >= 0 ? "N" : "S") : (v >= 0 ? "E" : "W");
+  const a = Math.abs(v), d = Math.floor(a), m = (a - d) * 60;
+  const dd = String(d).padStart(isLat ? 2 : 3, "0");
+  return `${dd}&deg;${m.toFixed(3).padStart(6,"0")}'${hemi}`;
+}
+function coordsHTML(loc){
+  if(!isFinite(loc.lat) || !isFinite(loc.lng)) return '';
+  const caveat = loc.gauge ? ` <span class="caveat">&middot; gauge, not a waypoint</span>` : '';
+  return `<span class="coords"><span class="pos">${fmtDDM(loc.lat, true)} ${fmtDDM(loc.lng, false)}</span>${caveat}</span>`;
+}
+
 function render(){
   const [ds,de] = dayWindow(activeDay);
   const isToday = activeDay === 0;
   let html = inletCardHTML(ds,de) + weatherCardHTML(ds,de)
            + '<div id="radarSlot"></div>' + feedingCardHTML(ds,de);
 
-  const ordered = LOCATIONS.slice().sort((a,b) =>
+  const ordered = LOCATIONS.filter(l => !isHidden(l.key)).sort((a,b) =>
     (offsets[a.key].hi + offsets[a.key].lo) - (offsets[b.key].hi + offsets[b.key].lo));
 
   for(const loc of ordered){
@@ -2131,16 +2229,26 @@ function render(){
       }
     }
     const o = offsets[loc.key];
+    /* The height model is its OWN line under the lag, not a clause inside the
+       lag's parentheses: they are two different calibrations and reading them
+       as one run-on sentence made the height scaling look like a footnote on
+       the lag. "tap to adjust" sits right-aligned on the lag line so the tap
+       target is in a fixed place on every card. */
     const scaledTxt = isFinite(loc.hs)
-      ? ` &middot; heights &times;${loc.hs} ${loc.ho < 0 ? '&minus;' : '+'} ${Math.abs(loc.ho).toFixed(2)} ft`
-      : (loc.fixed ? '' : ' &middot; inlet heights, unscaled');
-    const offTxt = loc.fixed ? "NOAA reference &mdash; no lag"
-      : `lag: H +${o.hi}m / L +${o.lo}m ${loc.measured ? "(measured" : "(est."}${scaledTxt}) &mdash; tap to adjust`;
+      ? `heights &times;${loc.hs} ${loc.ho < 0 ? '&minus;' : '+'} ${Math.abs(loc.ho).toFixed(2)} ft`
+      : (loc.fixed ? '' : 'inlet heights, unscaled');
+    const offTxt = loc.fixed
+      ? `<span class="offrow"><span>NOAA reference &mdash; no lag</span></span>`
+      : `<span class="offrow">`
+        + `<span>lag: H +${o.hi}m / L +${o.lo}m (${loc.measured ? "measured" : "est."})</span>`
+        + `<span class="adj">tap to adjust</span></span>`
+        + (scaledTxt ? `<span class="offsub">${scaledTxt}</span>` : '');
 
     html += `<div class="card ${ebbing ? "ebbing" : ""}">
       <div class="card-head">
         <div class="loc-name">${esc(loc.name)}
-          ${loc.charted && loc.charted !== loc.name ? `<span class="charted">${esc(loc.charted)}</span>` : ''}</div>
+          ${loc.charted && loc.charted !== loc.name ? `<span class="charted">${esc(loc.charted)}</span>` : ''}
+          ${coordsHTML(loc)}</div>
         ${st ? `<div class="state ${st.falling ? "ebb" : "flood"}">${st.falling ? "&#9660; Ebbing" : "&#9650; Flooding"} &middot; ${st.next.type === "H" ? "high" : "low"} ${fmtT(st.next.time)}</div>` : ""}
       </div>
       ${loc.fixed
@@ -2210,7 +2318,14 @@ function openDlg(key){
   document.getElementById("inLow").value  = offsets[key].lo;
   const sd = soundedFor(loc);
   document.getElementById("inSounded").value = (sd == null ? "" : sd);
-  document.getElementById("btnRemove").style.display = loc.added ? "" : "none";
+  /* Every card can come off the board now, not just the ones Jan added. The
+     two are different operations and the button says which: an added spot is
+     DELETED (it is nothing but a name and an estimate, and the picker can make
+     it again), a built-in is HIDDEN with its calibration intact and comes back
+     from the top of the Add-a-spot list. */
+  const rm = document.getElementById("btnRemove");
+  rm.style.display = "";
+  rm.textContent = loc.added ? "Delete spot" : "Remove card";
   dlg.showModal();
 }
 document.getElementById("btnCancel").onclick = () => document.getElementById("dlg").close();
@@ -2230,6 +2345,15 @@ document.getElementById("btnSave").onclick = () => {
   render();
 };
 document.getElementById("btnRemove").onclick = () => {
+  const loc = LOCATIONS.find(l => l.key === editingKey);
+  if(loc && !loc.added){
+    // built-in: hide it, keep everything it knows
+    if(!isHidden(editingKey)) hiddenKeys.push(editingKey);
+    saveHidden();
+    document.getElementById("dlg").close();
+    render();
+    return;
+  }
   addedSpots = addedSpots.filter(s => s.key !== editingKey);
   delete offsets[editingKey]; delete userPos[editingKey]; delete userSounded[editingKey];
   depthCache.delete(editingKey);
@@ -2297,6 +2421,25 @@ function openSpotDlg(key){
   renderSpotList("");
   if(typeof dlg.showModal === "function") dlg.showModal();
 }
+/* Cards Jan has removed come back from here, at the TOP of the add list and not
+   behind a search: a removed card has no other way back, and a restore buried
+   under 140 waypoints is a restore nobody finds. Not filtered by the search box
+   for the same reason — the section is a handful of rows at most. */
+function restoreCard(key){
+  hiddenKeys = hiddenKeys.filter(k => k !== key);
+  saveHidden();
+  document.getElementById("spotDlg").close();
+  render();
+}
+function hiddenRowsHTML(){
+  if(spotTarget || !hiddenKeys.length) return '';
+  const rows = hiddenKeys.map(k => LOCATIONS.find(l => l.key === k)).filter(Boolean)
+    .map(l => `<button class="spotrow" onclick="restoreCard('${l.key}')">
+        <span>${esc(l.name)}</span><span class="k">put back &middot; lag kept</span>
+      </button>`).join("");
+  return rows ? `<div class="spot-sect">Removed cards</div>${rows}` : '';
+}
+
 function renderSpotList(q){
   q = (q||"").toLowerCase().trim();
   const rows = WTF_SPOTS
@@ -2305,7 +2448,8 @@ function renderSpotList(q){
     .map((s,i) => `<button class="spotrow" onclick="pickSpot(${WTF_SPOTS.indexOf(s)})">
         <span>${esc(s[0])}</span><span class="k">${esc(s[3])} &middot; ${distNm({lat:s[1],lng:s[2]}, INLET).toFixed(1)} nm</span>
       </button>`).join("");
-  document.getElementById("spotList").innerHTML = rows || `<div style="padding:12px;font-size:12px;color:var(--ink-soft)">Nothing matches.</div>`;
+  document.getElementById("spotList").innerHTML = hiddenRowsHTML()
+    + (rows || `<div style="padding:12px;font-size:12px;color:var(--ink-soft)">Nothing matches.</div>`);
 }
 document.getElementById("spotSearch").addEventListener("input", e => renderSpotList(e.target.value));
 document.getElementById("spotCancel").onclick = () => document.getElementById("spotDlg").close();
