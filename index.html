@@ -583,7 +583,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 20;
+const BUILD_NUM = 21;
 const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
@@ -803,8 +803,10 @@ const BUILTIN_LOCATIONS = [
      degrees-decimal-minutes he gave:
        Crook's Corner  29°02.557'N 080°57.594'W  ->  29.042617 / -80.959900
        DJM             29°01.964'N 080°56.826'W  ->  29.032733 / -80.947100
-     Both sit in Turnbull Bay; Crook's Corner lands within 500 m of WTF's
-     Turnbull Creek pin, which is the check that the conversion is right.
+     Crook's Corner is on Turnbull CREEK, not the bay — Jan's correction,
+     2026-08-06, and it had been charted as "Turnbull Bay" until then. It lands
+     within 500 m of WTF's Turnbull Creek pin, which is both the check that the
+     conversion is right and, in hindsight, the clue that the label was wrong.
 
      CROOK'S CORNER MOVED AGAIN, same day, on Jan's correction: 29°02.580'N
      080°57.589'W, a few yards NORTH of the first figure. The first one was off
@@ -828,7 +830,7 @@ const BUILTIN_LOCATIONS = [
 
      Jan's note that "the lag times are valid" is why the figures below are
      untouched — the positions were the only thing missing. */
-  { key:"turnbull",  name:"Crook's Corner",          charted:"Turnbull Bay",
+  { key:"turnbull",  name:"Crook's Corner",          charted:"Turnbull Creek",
     lat:29.043000, lng:-80.959817, hi:120, lo:140, est:true, soundedFt:8 },
   /* MEASURED, and now with a HEIGHT MODEL that WTF never had.
 
