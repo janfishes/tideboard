@@ -583,7 +583,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 22;
+const BUILD_NUM = 23;
 const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
@@ -777,6 +777,14 @@ const BUILTIN_LOCATIONS = [
      sits right where Spruce Creek opens into Strickland Bay, which is how one
      crossing came to be called both. WTF carries the old name too and should be
      corrected there as well. */
+  /* ROSE BAY BRIDGE — measured, and squarely on the pond's drainage path.
+     A Stevens survey station in WTF: 60 samples, sd 17 min, lag +60/+80, heights
+     0.780 of the inlet's less 0.311 ft, on the Rose Bay branch. The Cambridge
+     Canal pond discharges to Crooked Creek and into Rose Bay before it ever
+     reaches Spruce Creek, so this is the first measured water downstream of it. */
+  { key:"rosebay",   name:"Rose Bay Bridge",         charted:"Rose Bay, at the bridge",
+    lat:29.1029, lng:-80.9713, hi:60,  lo:80,  measured:true,
+    hs:0.780, ho:-0.311, ls:0.780, lo_:-0.311 },
   { key:"trestle",   name:"Spruce Creek Trestle",    charted:"FEC railroad, Spruce Creek",
     lat:29.080050, lng:-80.983283, hi:105, lo:120, est:true },
   /* The trestle that was missing entirely. Position from Jan, 29°03.042'N
@@ -795,6 +803,16 @@ const BUILTIN_LOCATIONS = [
      up-bay, which puts it ~82% of the way to Crook's: +112/+131, rounded. Both
      anchors are themselves estimates, so this is an estimate of an estimate —
      est:true, and worth a real timing the first time Jan is sitting there. */
+  /* SPRUCE CREEK PARK — measured, and the furthest up-system spot on this list.
+     A Stevens survey station in WTF: 59 samples, sd 17 min, lag +213/+247,
+     heights 0.645 of the inlet's less 0.191 ft, on the Spruce Creek branch. The
+     gauge is long gone, so those 59 samples are all there will ever be — this
+     calibration is a fossil and cannot be improved by waiting. Three and a half
+     hours behind the inlet: a surge that has already peaked at Ponce is still
+     on its way here. */
+  { key:"sprucepark", name:"Spruce Creek Park",      charted:"Spruce Creek, at the park",
+    lat:29.0927, lng:-80.9751, hi:213, lo:247, measured:true,
+    hs:0.645, ho:-0.191, ls:0.645, lo_:-0.191 },
   { key:"tbtrestle", name:"Turnbull Bay Trestle",    charted:"FEC railroad, Turnbull Bay",
     lat:29.050700, lng:-80.959650, hi:110, lo:130, est:true },
   /* Crook's Corner and DJM are Jan's own names — neither is on a chart or in
