@@ -142,6 +142,16 @@
     border-top:1px solid var(--hair);padding:4px 10px;
     font-size:10px;color:var(--ink-soft);letter-spacing:.02em;
   }
+  /* A temporary, card-level "don't trust these times" banner. Deliberately NOT
+     the --stop colour: that family means the inlet is unrunnable, and this says
+     something much narrower — the LAG for this one spot is known to be off right
+     now. Any card can carry one via `alert` in LOCATIONS; delete the field when
+     the condition ends. */
+  .loc-alert{
+    background:var(--rough-soft);border-top:2px solid var(--rough);
+    padding:7px 12px;font-size:12px;color:var(--ink);line-height:1.35;
+  }
+  .loc-alert b{color:var(--rough)}
   .ebb-strip{
     background:var(--ebb-soft);border-top:2px solid var(--ebb-line);
     padding:7px 12px;font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:500;
@@ -583,7 +593,7 @@
    Single file, no build step, no runtime dependency on any CDN.
    ===================================================================== */
 
-const BUILD_NUM = 23;
+const BUILD_NUM = 24;
 const BUILD_STAMP = "2026-08-06";
 
 /* ---------------------------------------------------------------------
@@ -953,7 +963,18 @@ const BUILTIN_LOCATIONS = [
   { key:"fairway",   name:"DJM",                     charted:"Aqua Ct tide gauge",
     lat:29.032633, lng:-80.946983, gauge:true, hi:149, lo:188, measured:true,
     hs:0.59, ho:-0.04, ls:0.59, lo_:-0.04,
-    srcNote:"WTF gauge 'aquact' lags, re-derived n=7 highs / n=5 lows; heights fitted from Jan's staff readings, n=4 pairs + 1 high" },
+    srcNote:"WTF gauge 'aquact' lags, re-derived n=7 highs / n=5 lows; heights fitted from Jan's staff readings, n=4 pairs + 1 high",
+    /* TEMPORARY, added 2026-08-06 (build 24). The canal is being dredged, and a
+       barrier across it throttles the exchange: it delays the turn AND stops the
+       drawdown. Measured on 2026-08-06 — low at 1:42 PM against NOAA Ponce's
+       9:09 AM low = +273 min, 4.7 sd off the +188 fit, and 3.5 in on the staff
+       where the height model predicts about zero. Not weather: KEVB ran a steady
+       onshore E 9-11 kt, and Fernandina's observed low came in 22 min EARLY and
+       slightly lower than predicted, so the ocean was not running late or high.
+       DELETE THIS FIELD when the work ends — and note the +188 is a hypothesis
+       again at that point, not a measurement, since a deeper/wider cut exchanges
+       faster and would SHORTEN the lag. Re-verify on 2-3 clean readings. */
+    alert:"Aqua Ct is being <b>dredged</b>. A barrier in the canal holds the water back, so the turn comes late and the low does not drop as far &mdash; one reading ran <b>85 min late and 3.5 in high</b>. Treat these times as unreliable until the work is done." },
   /* MEASURED, from WTF's tide-knot table: gauge 4955 'Dunlawton Ave'
      (29.1491/-80.9745), 60 samples, sd 20 min — the same bridge, 90 m from this
      pin. The board had 125/150 by estimate; the measured figures are 90/105, so
@@ -2332,6 +2353,7 @@ function render(){
       ${loc.fixed
         ? `<div class="offset-chip" style="cursor:default;text-decoration:none">${offTxt}</div>`
         : `<button class="offset-chip" onclick="openDlg('${loc.key}')">${offTxt}</button>`}
+      ${loc.alert ? `<div class="loc-alert">${loc.alert}</div>` : ""}
       ${curveSVG(evAll, ds, de)}
       ${depthStripHTML(loc, evAll, ds, de)}
       <div class="events">
